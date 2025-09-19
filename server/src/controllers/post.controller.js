@@ -29,7 +29,7 @@ const uploadImage = async (image) => {
     return result.secure_url;
 };
 
-const notifyFollowers = async (userId, userName, postId) => {
+export const notifyFollowers = async (userId, userName, postId) => {
     const followers = await User.find({ following: userId });
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24h ago
 

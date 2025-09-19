@@ -1,38 +1,37 @@
 import Story from "../models/story.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import fs from "fs/promises";
-import { createNotification } from "./notification.controller.js";
+import { notifyFollowers } from "./post.controller.js";
 
 export const createStory = async (req, res) => {
     const { caption } = req.body;
-    const { storyImage } = req.file;
+    const storyImage = req.file;
     let imageUrl = '';
-
-
 
     try {
         if (!caption && !storyImage) {
             return res.status(400).json({ message: "Text or image message is required." });
 
         }
-        if (image) {
-            const result = await cloudinary.uploader.upload(storyImage.path, {
-                resource_type: "storyImage ",
+        if (storyImage) {
+            // Convert buffer to base64 for Cloudinary upload
+            const base64Image = `data:${storyImage.mimetype};base64,${storyImage.buffer.toString('base64')}`;
+            const result = await cloudinary.uploader.upload(base64Image, {
+                resource_type: "image",
+                folder: "stories",
             });
-
+            console.log(result)
             imageUrl = result.secure_url;
-
-            await fs.unlink(storyImage.path);
         }
-
-        const createStory = await Message.create({
-            userId,
+        console.log(imageUrl)
+        const createStory = await Story.create({
+            user: req.user._id,
             caption,
-            imageUrl,
+            storyImage: imageUrl,
         });
 
 
-        await notifyFollowers(userId, req.user.name, createStory._id);
+        await notifyFollowers(req.user._id, req.user.name, createStory._id);
         res.status(201).json({ message: "Story created successfully", post: createStory });
     }
 
@@ -40,7 +39,7 @@ export const createStory = async (req, res) => {
 
 
     catch (error) {
-        console.error("Create story error:", err);
+        console.error("Create story error:", error);
         res.status(500).json({ message: "Internal server error" });
 
     }
@@ -50,7 +49,7 @@ export const createStory = async (req, res) => {
 }
 
 
-export const getStory = async (req,res) =>{
+export const getStory = async (req, res) => {
 
     const stories = await Story.find()
         .populate("user", "fullname profilePic")
@@ -61,10 +60,10 @@ export const getStory = async (req,res) =>{
 
 
     try {
-        
+
     } catch (error) {
         res.status(500).json({ success: false, message: "Internal server error" });
-        
+
     }
 
 

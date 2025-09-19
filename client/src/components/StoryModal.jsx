@@ -13,7 +13,8 @@ const [media, setMedia] = useState(null)
 const [previewUrl, setPreviewUrl] = useState(null)
 
 const handleMediaUpload = (e)=>{
-     const file = e.target.files?.[0]
+     const file = e.target.files[0]
+     console.log(file)
      if(file){
         setMedia(file)
         setPreviewUrl(URL.createObjectURL(file))

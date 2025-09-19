@@ -60,8 +60,14 @@ export const createPost = async (formData) => {
 // To create story
 export const createStory = async (text, image) => {
   try {
-    const response = await API.post("/story/", { text, image }, {
-      withCredentials: true
+    console.log(text, image);
+    const response = await API.post("/story/", { caption : text,storyImage : image }, {
+      withCredentials: true,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }).then((response) => {
+      console.log(response.data);
     });
 
     return response.data;
