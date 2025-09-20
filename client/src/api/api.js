@@ -84,7 +84,9 @@ export const createStory = async (text, image) => {
 
 export const getAllStory = async () => {
   try {
-    const response = await API.get("/story/getStory");
+    const response = await API.get("/story/", {
+      withCredentials: true
+    });
     return response.data;
   } catch (error) {
     const errorMessage = error.response?.data || error.message;

@@ -1,41 +1,41 @@
 import mongoose from "mongoose";
-import User from "./user.model.js";
 
 const storySchema = new mongoose.Schema(
-    {
-
-        user:
-         {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-        },
-
-        storyImage: 
-        {
-            type: String,
-            required: true,
-        },
-        caption: {
-            type: String,
-            trim: true,
-            maxlength: 500, 
-        },
-        expiresAt: {
-            type: Date,
-            default: () => Date.now() + 24 * 60 * 60 * 1000, // expires in 24 hours
-            index: { expires: "0s" }, //auto delete the story after 24 hours
-        },
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
-
-    {
-        timestamps: true,
-    }
-
-
-
-
+    content: {
+      type: String,
+      trim: true,
+      maxlength: 500, 
+    },
+    media_url: {
+      type: String,
+      default: "", 
+    },
+    media_type: {
+      type: String,
+      enum: ["text", "image", "video"], 
+      required: true,
+    },
+    background_color: {
+      type: String,
+      default: "#4f46e5", 
+    },
+    expiresAt: {
+      type: Date,
+      default: () => Date.now() + 24 * 60 * 60 * 1000,
+      index: { expires: "0s" },
+    },
+  },
+  {
+    timestamps: true,
+  }
 );
-const Story = mongoose.model("Story",storySchema);
+
+const Story = mongoose.model("Story", storySchema);
 
 export default Story;
