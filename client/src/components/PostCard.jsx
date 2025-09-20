@@ -4,11 +4,29 @@ import moment from 'moment'
 import { dummyUserData } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
 
+// {
+//             "_id": "68ce0d70adf4f1a34b27739c",
+//             "userId": {
+//                 "_id": "68cbdc1e81c30e29f553cf75",
+//                 "fullname": "AAYUS KARKI"
+//             },
+//             "text": "ok",
+//             "image": [
+//                 "https://res.cloudinary.com/dczqoleux/image/upload/v1758334320/posts/ksd6dk8j7oh8xx7okm2d.png",
+//                 "https://res.cloudinary.com/dczqoleux/image/upload/v1758334321/posts/zsmagn6xrmqp1zt98g42.png"
+//             ],
+//             "likes": [],
+//             "comments": [],
+//             "createdAt": "2025-09-20T02:12:00.686Z",
+//             "updatedAt": "2025-09-20T02:12:00.686Z",
+//             "__v": 0
+//         },
+
 const PostCard = ({post}) => {
+    console.log(post)
+    const postWithHashtags = post.text.replace(/(#\w+)/g, '<span class="text-indigo-600">$1</span>')
 
-    const postWithHashtags = post.content.replace(/(#\w+)/g, '<span class="text-indigo-600">$1</span>')
-
-    const [likes, setLikes] = useState(post.likes_count)
+    const [likes] = useState(post.likes)
     const currentUser = dummyUserData
 
     const handleLike = async () => {
@@ -20,14 +38,14 @@ const PostCard = ({post}) => {
     <div className='bg-white rounded-xl shadow p-4 w-full max-w-2xl'>
         {/* User Info */}
        <div onClick={()=> navigate('/profile/'+ post.user._id)} className='inline-flex items-center gap-3 cursor-pointer'>
-        <img src={post.user.profile_picture} alt="" className='w-10 h-10 rounded-full shadow'/>
+        <img src={post.userId.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='w-10 h-10 rounded-full shadow'/>
         <div>
             <div className='flex items-center space-x-1'>
-                <span>{post.user.full_name}</span>
+                <span>{post.userId.fullname}</span>
                 <BadgeCheck className='w-4 h-4 text-blue-500' />
             </div>
             <div className='text-gary-500 text-sm'>
-                @{post.user.username} • {moment(post.createdAt).fromNow()}
+                @{post.userId.fullname} • {moment(post.createdAt).fromNow()}
             </div>
         </div>
     </div>
@@ -36,8 +54,8 @@ const PostCard = ({post}) => {
      
      {/* Images */}
      <div className='grid grid-cols-2 gap-2'>
-          {post.image_urls.map((img, index)=>(
-            <img src={img} key={index} className={`w-full h-48 object-cover rounded-lg ${post.image_urls.length === 1 && 'col-span-2 h-auto'}`} alt="" />
+          {post.image.map((img, index)=>(
+            <img src={img} key={index} className={`w-full h-48 object-cover rounded-lg ${post.image.length === 1 && 'col-span-2 h-auto'}`} alt="" />
           ))}
      </div>
 

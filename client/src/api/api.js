@@ -48,6 +48,7 @@ export const createPost = async (formData) => {
       headers: {
         "Content-Type": "multipart/form-data",
       },
+      withCredentials: true
     });
     
     return response.data;
@@ -96,7 +97,24 @@ export const getAllStory = async () => {
 
 export const getAllPost = async () => {
   try {
-    const response = await API.get("/post/getAllPost");
+    const response = await API.get("/post/getAllPost", {
+      withCredentials: true
+    });
+    return response.data;
+  } catch (error) {
+    const errorMessage = error.response?.data || error.message;
+    console.error("Failed to fetch posts:", errorMessage);
+    throw errorMessage;
+  }
+};
+
+//API for get my posr
+
+export const getMyPosts = async () => {
+  try {
+    const response = await API.get("/post/getmyposts", {
+      withCredentials: true
+    });
     return response.data;
   } catch (error) {
     const errorMessage = error.response?.data || error.message;

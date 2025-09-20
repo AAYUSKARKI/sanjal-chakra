@@ -1,27 +1,26 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { dummyPostsData, dummyUserData } from '../assets/assets'
 import Loading from '../components/Loading'
 import UserProfileInfo from '../components/UserProfileInfo'
 import PostCard from '../components/PostCard'
 import moment from 'moment'
 import ProfileModal from '../components/ProfileModal'
-
+import useAuth from '../hooks/useAuth'
+import { getMyPosts } from '../api/api'
 const Profile = () => {
 
  const {profileId} =useParams()
-
- const [user, setUser] = useState(null)
+ const {user}= useAuth()
  const [posts, setPosts] = useState([])
  const [activeTab, setActiveTab] = useState('posts')
  const [showEdit, setShowEdit] = useState(false)
 
- const fetchUser = async () => {
-  setUser(dummyUserData)
-  setPosts(dummyPostsData)
+ const fetchPost = async () => {
+  const data = await getMyPosts()
+  setPosts(data.posts)
  }
  useEffect(()=>{
-      fetchUser()
+      fetchPost()
  },[])
 
   return user ? (
@@ -31,7 +30,7 @@ const Profile = () => {
          <div className='bg-white rounded-2xl shadow overflow-hidden'>
                {/* Cover Photo */}
                <div className='h-40 md:h-56 bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200'>
-                   {user.cover_photo && <img src={user.cover_photo} alt="" className='w-full h-full object-cover'/> }
+                   {user && <img src={user.cover_photo || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='w-full h-full object-cover'/> }
                </div>
                {/* User Info */}
                <UserProfileInfo user={user} posts={posts} profileId={profileId} setShowEdit={setShowEdit}/>
@@ -59,9 +58,9 @@ const Profile = () => {
                      {activeTab === 'media' && (
                       <div className='flex flex-wrap mt-6 max-w-6xl'>
                         {
-                          posts.filter((post)=>post.image_urls.length > 0).map ((post)=>(
+                          posts.filter((post)=>post.image.length > 0).map ((post)=>(
                             <>
-                            {post.image_urls.map((image, index)=> (
+                            {post.image.map((image, index)=> (
                               <Link target='_blank' to={image} key={index} className='relative group'>
                               <img src={image} key={index} className='w-64 aspect-video object-cover' alt="" />
                               <p className='absolute bottom-0 right-0 text-xs p-1 px-3 backdrop-blur-xl text-white opacity-0 group-hover:opacity-100 transition duration-300'>Posted{moment(post.createdAt).fromNow()}</p>

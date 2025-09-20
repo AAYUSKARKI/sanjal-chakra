@@ -11,9 +11,9 @@ const CreatePost = () => {
   const [loading, setLoading] = useState(false)
   const user = dummyUserData;
    
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-     if (!content.trim() && images.length === 0) {
+     if (!content.trim() && image.length === 0) {
       toast.error("Please add some content or images to your post");
       return;
     }
@@ -24,8 +24,8 @@ const CreatePost = () => {
     formData.append("text", content);
     
     
-    image.forEach((image, index) => {
-      formData.append(`image_${index}`, image);
+    image.forEach((image) => {
+      formData.append("image", image);
     });
 
     try {
@@ -72,8 +72,8 @@ const CreatePost = () => {
                 
                 {/* Images */}
                 {
-                  images.length > 0 && <div className='flex flex-wrap gap-2 mt-4'>
-                    {images.map((image, i)=> (
+                  image.length > 0 && <div className='flex flex-wrap gap-2 mt-4'>
+                    {image.map((image, i)=> (
                       <div key={i} className='relative group'>
                         <img src={URL.createObjectURL(image)} className='h-20 rounded-md' alt="" />
                         <div onClick={()=> setImages(images.filter((_,index)=> index !==i))} className='absolute hidden group-hover:flex justify-center items-center top-0 right-0 bottom-0 left-0 bg-black/40 rounded-md cursor-pointer'>
@@ -91,7 +91,7 @@ const CreatePost = () => {
                  </label>
 
                  <input type="file" id="images" accept='image/*' hidden multiple 
-                 onChange={(e)=>setImages([...images, ...e.target.files])}/>
+                 onChange={(e)=>setImages([...image, ...e.target.files])}/>
 
                  <button disabled={loading} type='submit' className='text-sm bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white font-medium px-8 py-2 rounded-md cursor-pointer'>
                   Publish Post

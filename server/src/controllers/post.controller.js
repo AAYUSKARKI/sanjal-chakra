@@ -106,6 +106,18 @@ export const getAllPost = async (req, res) => {
     }
 };
 
+// ------------------------- GET MY POSTS ------------------------- 
+export const getMyPosts = async (req, res) => {
+    try {
+        const currentUserId = req.user._id;
+        const posts = await Post.find({ userId: currentUserId }).sort({ createdAt: -1 });
+        res.status(200).json({ posts });
+    } catch (err) {
+        console.error("Get my posts error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // ------------------------- SHARE POST -------------------------
 export const sharePost = async (req, res) => {
     try {

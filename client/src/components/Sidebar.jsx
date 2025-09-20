@@ -9,8 +9,7 @@ import useAuth from "../hooks/useAuth";
 const Sidebar = ({sidebarOpen, setSidebarOpen}) => {
 
 const navigate = useNavigate()
-const user = dummyUserData
-const { logout } = useAuth()
+const { user,logout } = useAuth()
 
 
   return (
@@ -29,10 +28,10 @@ const { logout } = useAuth()
 
            <div className='w-full border-t border-gray-200 p-4 px-7 flex items-center justify-between'>
                 <div className='flex gap-2 items-center cursor-pointer'>
-                    <img src={user?.profile_image || assets?.default_avatar} className="w-8 h-8 rounded-full object-cover" alt="" />
+                    <img src={user?.profile_image || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} className="w-8 h-8 rounded-full object-cover" alt="" />
                     <div>
-                      <h1 className='text-sm font-medium'>{user.full_name}</h1>
-                      <p className='text-xs text-gray-500'>@{user.username}</p>
+                      <h1 className='text-sm font-medium'>{user.fullName}</h1>
+                      <p className='text-xs text-gray-500'>@{user.fullName}</p>
                     </div>
                 </div>
                 <LogOut onClick={logout} className='w-4.5 text-gray-400 hover:text-gray-700 transition cursor-pointer'/>

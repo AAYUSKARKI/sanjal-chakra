@@ -8,7 +8,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
       <div className="flex flex-col md:flex-row items-start gap-6">
         <div className="w-32 h-32 border-4 border-white shadow-lg absolute -top-16 rounded-full">
           <img
-            src={user.profile_picture}
+            src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"}
             alt=""
             className="absolute rounded-full z-2"
           />
@@ -18,12 +18,12 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {user.full_name}
+                  {user.fullName}
                 </h1>
                 <Verified className="w-6 h-6 text-blue-500" />
               </div>
               <p className="text-gray-600">
-                {user.username ? `@${user.username}` : "Add a username"}
+                {user.username ? `@${user.fullName}` : "Add a username"}
               </p>
             </div>
             {/* If user is not on others profile that means he is opening his profile so we will give edit button*/}
@@ -57,11 +57,11 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
                 <span className="text-xs sm:text-sm text-gray-500 ml-1.5">Posts</span>
                </div>
                <div>
-                <span className="sm:text-xl font-bold text-gray-900">{user.followers.length}</span>
+                <span className="sm:text-xl font-bold text-gray-900">{user.followers ? user.followers.length : 0}</span>
                 <span className="text-xs sm:text-sm text-gray-500 ml-1.5">Followers</span>
                </div>
                <div>
-                <span className="sm:text-xl font-bold text-gray-900">{user.following.length}</span>
+                <span className="sm:text-xl font-bold text-gray-900">{user.following ? user.following.length : 0}</span>
                 <span className="text-xs sm:text-sm text-gray-500 ml-1.5">Following</span>
                </div>
           </div>

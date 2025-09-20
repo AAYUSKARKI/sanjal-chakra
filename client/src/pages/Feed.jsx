@@ -4,16 +4,15 @@ import Loading from '../components/Loading'
 import StoriesBar from '../components/StoriesBar'
 import PostCard from '../components/PostCard'
 import RecentMessages from '../components/RecentMessages'
-
+import { getAllPost } from '../api/api'
 const Feed = () => {
   const [feeds, setfeeds] = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetchFeeds = async ()=> {
-    setfeeds(dummyPostsData)
+    const data = await getAllPost()
+    setfeeds(data.posts)
     setLoading(false)
-
-    
   }
 
   useEffect(()=>{
