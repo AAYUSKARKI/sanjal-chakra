@@ -9,9 +9,23 @@ const transporter = nodemailer.createTransport({
         pass: process.env.SMPT_PASSWORD,
 
     }
-
-
 });
 
+const sendOtp = async (email, otp) => {
+    const mailOptions = {
+        from: process.env.SMPT_USER,
+        to: email,
+        subject: "OTP Verification",
+        text: `Your OTP is: ${otp}`
+    };
 
-export default transporter;
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Email sent:", info.response);
+    } catch (error) {
+        console.error("Error sending email:", error);
+    }
+}
+
+
+export default sendOtp

@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs"
 import User from "../models/user.model.js"
 import { generateToken } from "../utils/generatetokens.js"
+import sendOtp from "../lib/nodemailer.js"
 
 export const signup = async (req, res) => {
     const { fullname, password, email } = req.body
@@ -18,16 +19,22 @@ export const signup = async (req, res) => {
         const salt = await bcrypt.genSalt(13);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // generate otp and its expire time
+        const verifyOtp = Math.floor(100000 + Math.random() * 900000);
+        const verifyOtpExpireAT = Date.now() + 10 * 60 * 1000;
         // Create the user
         const newUser = new User({
             fullname,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            verifyOtp,
+            verifyOtpExpireAT
         });
         //check if the user is created, if yes:genrate a jwt and save user in the database
         if (newUser) {
             generateToken(newUser._id, res);
             await newUser.save();
+            await sendOtp(email, verifyOtp);
 
             res.status(201).json({
                 _id: newUser._id,
@@ -48,6 +55,39 @@ export const signup = async (req, res) => {
     }
     catch (error) {
         console.log("SignUp Error:", error.message);
+        res.status(500).json({ message: "Internal Server Error!!" })
+
+    }
+}
+
+//verify otp code
+export const verifyOtp = async (req, res) => {
+    const { email, otp } = req.body;
+    try {
+        if (!email || !otp) return res.status(400).json({ message: "All fields are required" })
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(400).json({ message: "Invalid  Credentials!!" })
+        }
+        if (user.verifyOtpExpireAT < Date.now()) {
+            return res.status(400).json({ message: "OTP Expired!!" })
+        }
+        if (user.verifyOtp !== otp) {
+            return res.status(400).json({ message: "Invalid OTP!!" })
+        }
+        user.isVerified = true;
+        user.verifyOtp = "";
+        user.verifyOtpExpireAT = 0;
+        await user.save();
+        const token = generateToken(user._id, res)
+        res.status(200).json({
+            _id: user._id,
+            email: user.email,
+            fullName: user.fullname,
+            token
+        })
+    } catch (error) {
+        console.log("VerifyOtp Error:", error);
         res.status(500).json({ message: "Internal Server Error!!" })
 
     }

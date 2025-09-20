@@ -3,6 +3,7 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { AUTH_STATES, STORAGE_KEYS, ERROR_MESSAGES } from '../utils/constants';
 import API from '../api/api.js'
 import Cookies from 'js-cookie';
+import { data } from 'react-router-dom';
 // Initial state
 const initialState = {
   user: null,
@@ -281,33 +282,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       clearMessages();
 
-      // Mock API call - replace with real API later
+      data = await  API.post("auth/verifyOtp",{email, otp});
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
 
-      // Mock successful verification response
-      const mockUser = {
-        id: '2',
-        fullName: 'New User',
-        email: email,
-        isVerified: true,
-      };
-
-      const mockTokens = {
-        accessToken: 'mock-access-token-' + Date.now(),
-        refreshToken: 'mock-refresh-token-' + Date.now(),
-      };
-
-      // Save to localStorage
-      saveToStorage(STORAGE_KEYS.USER_DATA, mockUser);
-      saveToStorage(STORAGE_KEYS.AUTH_TOKEN, mockTokens.accessToken);
-      saveToStorage(STORAGE_KEYS.REFRESH_TOKEN, mockTokens.refreshToken);
 
       dispatch({
         type: AUTH_ACTIONS.OTP_VERIFIED,
-        payload: { user: mockUser, tokens: mockTokens },
+        payload: { user: data, tokens: data.token },
       });
 
-      return { success: true, user: mockUser };
+      return { success: true, user: data };
     } catch (error) {
       setError(error.message || ERROR_MESSAGES.INVALID_OTP);
       return { success: false, error: error.message };
