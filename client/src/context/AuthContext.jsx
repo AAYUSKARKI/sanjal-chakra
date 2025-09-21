@@ -293,8 +293,8 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: data };
     } catch (error) {
-      setError(error.message || ERROR_MESSAGES.INVALID_OTP);
-      return { success: false, error: error.message };
+      setError(error.response?.data.message || ERROR_MESSAGES.INVALID_OTP);
+      return { success: false, error: error.response.data.message };
     }
   };
 

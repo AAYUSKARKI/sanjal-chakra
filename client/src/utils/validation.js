@@ -94,6 +94,8 @@ export const validateFullName = (fullName) => {
 export const validateOTP = (otp) => {
   const errors = [];
   
+  console.log('validateOTP input:', otp, 'Type:', typeof otp, 'Length:', otp?.length); // Debug log
+  
   if (!otp) {
     errors.push("Verification code is required");
     return { isValid: false, errors };
@@ -104,7 +106,10 @@ export const validateOTP = (otp) => {
     return { isValid: false, errors };
   }
   
-  if (!/^\d{6}$/.test(otp.trim())) {
+  const trimmedOTP = otp.trim();
+  console.log('Trimmed OTP:', trimmedOTP, 'Regex test:', /^\d{6}$/.test(trimmedOTP)); // Debug log
+  
+  if (!/^\d{6}$/.test(trimmedOTP)) {
     errors.push("Verification code must be exactly 6 digits");
   }
   

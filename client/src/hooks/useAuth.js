@@ -125,7 +125,7 @@ const signup = async (formData) => {
 };
 
   // Enhanced OTP verification with validation
-  const verifyOTP = async (otpValue) => {
+  const verifyOTP = async (email, otpValue) => {
     try {
       // Clear any existing messages
       clearMessages();
@@ -137,13 +137,8 @@ const signup = async (formData) => {
         return { success: false, errors: validation.errors };
       }
 
-      if (!pendingVerificationEmail) {
-        setError('No pending verification found. Please sign up again.');
-        return { success: false, error: 'No pending verification' };
-      }
-
       // Perform OTP verification
-      const result = await contextVerifyOTP(pendingVerificationEmail, otpValue);
+      const result = await contextVerifyOTP(email, otpValue);
 
       if (result.success) {
         setSuccessMessage(SUCCESS_MESSAGES.OTP_VERIFIED);

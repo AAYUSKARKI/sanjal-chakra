@@ -38,14 +38,14 @@ const PostCard = ({post}) => {
     <div className='bg-white rounded-xl shadow p-4 w-full max-w-2xl'>
         {/* User Info */}
        <div onClick={()=> navigate('/profile/'+ post.user._id)} className='inline-flex items-center gap-3 cursor-pointer'>
-        <img src={post.userId.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='w-10 h-10 rounded-full shadow'/>
+        <img src={post.userId?.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='w-10 h-10 rounded-full shadow'/>
         <div>
             <div className='flex items-center space-x-1'>
-                <span>{post.userId.fullname}</span>
+                <span>{post.userId?.fullname || "Mr.Nepal"}</span>
                 <BadgeCheck className='w-4 h-4 text-blue-500' />
             </div>
             <div className='text-gary-500 text-sm'>
-                @{post.userId.fullname} • {moment(post.createdAt).fromNow()}
+                @{post.userId?.fullname || "Mr.Nepal"} • {moment(post.createdAt).fromNow()}
             </div>
         </div>
     </div>

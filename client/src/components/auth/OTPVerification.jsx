@@ -40,7 +40,7 @@ const OTPVerification = () => {
     canResend,
     resendCountdown,
     startResendCountdown,
-    reset: resetOTP
+    clearOTP
   } = useOTP({
     onComplete: async (otpValue) => {
       console.log('Auto-submitting OTP:', otpValue); // Debug log
@@ -57,13 +57,13 @@ const OTPVerification = () => {
           // Show error message
           clearMessages();
           // You might want to set a custom error here
-          resetOTP();
+          clearOTP()
           return;
         } else if (otpValue === '111111') {
           console.log('Using dev expired code');
           // Show expired message
           clearMessages();
-          resetOTP();
+          clearOTP()
           return;
         }
       }
@@ -72,11 +72,11 @@ const OTPVerification = () => {
       try {
         const result = await verifyOTP(email, otpValue);
         if (!result.success) {
-          resetOTP();
+          clearOTP()
         }
       } catch (err) {
         console.error('OTP verification error:', err);
-        resetOTP();
+        clearOTP()
       }
     },
     autoSubmit: true,
@@ -109,7 +109,7 @@ const OTPVerification = () => {
       if (result.success) {
         setResendAttempts(prev => prev + 1);
         startResendCountdown();
-        resetOTP();
+        clearOTP()
         
         if (resendAttempts >= 2) {
           setShowResendLimit(true);
@@ -139,23 +139,23 @@ const OTPVerification = () => {
       } else if (otpValue === '000000') {
         console.log('Dev mode: Invalid code entered');
         // Set custom error or use existing error state
-        resetOTP();
+        clearOTP()
         return;
       } else if (otpValue === '111111') {
         console.log('Dev mode: Expired code entered');
-        resetOTP();
+        clearOTP()
         return;
       }
     }
     
     try {
-      const result = await verifyOTP(email, otpValue);
+      const result = await verifyOTP(email,otpValue);
       if (!result.success) {
-        resetOTP();
+        clearOTP()
       }
     } catch (err) {
       console.error('Manual OTP verification error:', err);
-      resetOTP();
+      clearOTP()
     }
   };
 

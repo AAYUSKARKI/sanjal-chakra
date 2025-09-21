@@ -38,49 +38,57 @@ const useOTP = (options = {}) => {
   }, [autoFocus]);
 
   // Handle OTP input change
-  const handleChange = (index, value) => {
-    // Only allow digits
-    if (!/^\d*$/.test(value)) return;
+ const handleChange = (index, value) => {
+  // Only allow digits
+  if (!/^\d*$/.test(value)) return;
 
-    const newOtpValues = [...otpValues];
+  const newOtpValues = [...otpValues];
+  
+  // Handle single digit input
+  if (value.length <= 1) {
+    newOtpValues[index] = value;
+    setOtpValues(newOtpValues);
+
+    // Move to next input if value is entered
+    if (value && index < length - 1) {
+      setActiveIndex(index + 1);
+      inputRefs.current[index + 1]?.focus();
+    }
+  }
+  // Handle paste operation
+  else if (value.length > 1) {
+    const pastedValues = value.slice(0, length).split('');
+    for (let i = 0; i < length; i++) {
+      newOtpValues[i] = pastedValues[i] || '';
+    }
+    setOtpValues(newOtpValues);
     
-    // Handle single digit input
-    if (value.length <= 1) {
-      newOtpValues[index] = value;
-      setOtpValues(newOtpValues);
+    // Focus last filled input or last input
+    const lastFilledIndex = Math.min(pastedValues.length - 1, length - 1);
+    setActiveIndex(lastFilledIndex);
+    inputRefs.current[lastFilledIndex]?.focus();
+  }
 
-      // Move to next input if value is entered
-      if (value && index < length - 1) {
-        setActiveIndex(index + 1);
-        inputRefs.current[index + 1]?.focus();
-      }
-    }
-    // Handle paste operation
-    else if (value.length > 1) {
-      const pastedValues = value.slice(0, length).split('');
-      for (let i = 0; i < length; i++) {
-        newOtpValues[i] = pastedValues[i] || '';
-      }
-      setOtpValues(newOtpValues);
-      
-      // Focus last filled input or last input
-      const lastFilledIndex = Math.min(pastedValues.length - 1, length - 1);
-      setActiveIndex(lastFilledIndex);
-      inputRefs.current[lastFilledIndex]?.focus();
-    }
+  // Check if OTP is complete
+  const isOtpComplete = newOtpValues.every(digit => digit !== '');
+  setIsComplete(isOtpComplete);
 
-    // Check if OTP is complete
-    const isOtpComplete = newOtpValues.every(digit => digit !== '');
-    setIsComplete(isOtpComplete);
-
-    // Auto-submit if complete and autoSubmit is enabled
-    if (isOtpComplete && autoSubmit && onComplete) {
-      const otpString = newOtpValues.join('');
+  // Auto-submit if complete, autoSubmit is enabled, and OTP is valid
+  if (isOtpComplete && autoSubmit && onComplete) {
+    const otpString = newOtpValues.join('');
+    const validationResult = validateOTP(otpString); // Validate OTP
+    if (validationResult.isValid) {
       setTimeout(() => {
         onComplete(otpString);
       }, 100); // Small delay for better UX
+    } else {
+      // Optionally handle invalid OTP (e.g., set error state)
+      if (onError) {
+        onError(validationResult.errors);
+      }
     }
-  };
+  }
+};
 
   // Handle key down events
   const handleKeyDown = (index, e) => {
@@ -125,26 +133,40 @@ const useOTP = (options = {}) => {
 
   // Handle paste event
   const handlePaste = (e) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
+  e.preventDefault();
+  const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
+  
+  if (pastedData) {
+    const pastedValues = pastedData.slice(0, length).split('');
+    const newOtpValues = new Array(length).fill('');
     
-    if (pastedData) {
-      const pastedValues = pastedData.slice(0, length).split('');
-      const newOtpValues = new Array(length).fill('');
-      
-      for (let i = 0; i < Math.min(pastedValues.length, length); i++) {
-        newOtpValues[i] = pastedValues[i];
-      }
-      
-      setOtpValues(newOtpValues);
-      setIsComplete(newOtpValues.every(digit => digit !== ''));
-      
-      // Focus appropriate input
-      const lastFilledIndex = Math.min(pastedValues.length - 1, length - 1);
-      setActiveIndex(lastFilledIndex);
-      inputRefs.current[lastFilledIndex]?.focus();
+    for (let i = 0; i < Math.min(pastedValues.length, length); i++) {
+      newOtpValues[i] = pastedValues[i];
     }
-  };
+    
+    setOtpValues(newOtpValues);
+    const isOtpComplete = newOtpValues.every(digit => digit !== '');
+    setIsComplete(isOtpComplete);
+    
+    // Validate pasted OTP before auto-submitting
+    if (isOtpComplete && autoSubmit && onComplete) {
+      const otpString = newOtpValues.join('');
+      const validationResult = validateOTP(otpString);
+      if (validationResult.isValid) {
+        setTimeout(() => {
+          onComplete(otpString);
+        }, 100);
+      } else if (onError) {
+        onError(validationResult.errors);
+      }
+    }
+    
+    // Focus appropriate input
+    const lastFilledIndex = Math.min(pastedValues.length - 1, length - 1);
+    setActiveIndex(lastFilledIndex);
+    inputRefs.current[lastFilledIndex]?.focus();
+  }
+};
 
   // Get OTP string
   const getOTPValue = () => {

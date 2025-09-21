@@ -30,6 +30,7 @@ export const signup = async (req, res) => {
             verifyOtp,
             verifyOtpExpireAT
         });
+        console.log(newUser)
         //check if the user is created, if yes:genrate a jwt and save user in the database
         if (newUser) {
             generateToken(newUser._id, res);
@@ -65,19 +66,26 @@ export const verifyOtp = async (req, res) => {
     const { email, otp } = req.body;
     try {
         if (!email || !otp) return res.status(400).json({ message: "All fields are required" })
+
         const user = await User.findOne({ email })
+        // console.log(user)
         if (!user) {
             return res.status(400).json({ message: "Invalid  Credentials!!" })
         }
-        if (user.verifyOtpExpireAT < Date.now()) {
-            return res.status(400).json({ message: "OTP Expired!!" })
-        }
+        // console.log(otp,"otp from client")
+        // console.log(user)
+        // console.log(user.verifyOtp,"otp from db")
         if (user.verifyOtp !== otp) {
             return res.status(400).json({ message: "Invalid OTP!!" })
         }
+
+        if (user.verifyOtpExpireAT < Date.now()) {
+            return res.status(400).json({ message: "OTP Expired!!" })
+        }
+
         user.isVerified = true;
-        user.verifyOtp = "";
-        user.verifyOtpExpireAT = 0;
+        // user.verifyOtp = "";
+        // user.verifyOtpExpireAT = 0;
         await user.save();
         const token = generateToken(user._id, res)
         res.status(200).json({
