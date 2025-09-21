@@ -1,14 +1,27 @@
-import React, { useState } from 'react'
-import { dummyConnectionsData } from '../assets/assets'
+import { useState, useEffect } from 'react'
 import { Search } from 'lucide-react'
 import UserCard from '../components/UserCard'
 import Loading from '../components/Loading'
+import API from '../api/api'
 
 const Discover = () => {
 
   const [input, setInput] = useState('')
-  const [users, setUsers] = useState(dummyConnectionsData)
+  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
+
+  const getAllUsers = async () => {
+    try {
+      const res = await API.get('/users/all', {withCredentials: true})
+      setUsers(res.data)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  useEffect(() => {
+    getAllUsers()
+  }, [])
 
   const handleSearch = async (e) => {
     if(e.key === 'Enter'){
@@ -16,8 +29,8 @@ const Discover = () => {
       setLoading(true)
       setTimeout(() => {
         
-      }, timeout);(()=>{
-        setUsers(dummyConnectionsData)
+      }, 100);(()=>{
+        setUsers()
         setLoading(false)
       }, 1000)
     }

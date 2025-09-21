@@ -21,13 +21,13 @@ export const followUser = async (req, res) => {
             return res.status(400).json({ message: "Already following this user" });
         }
 
-       // update followers/following  
+        // update followers/following  
         userToFollow.followers.push(currentUser);
         await userToFollow.save();
 
         await User.findByIdAndUpdate(currentUser, { $push: { following: userId } });
 
-             res.status(200).json({ message: "User followed successfully" });
+        res.status(200).json({ message: "User followed successfully" });
 
         //CREATE NOTIFICATION
         const notification = new Notification({
@@ -39,9 +39,9 @@ export const followUser = async (req, res) => {
 
 
 
-        
 
-    
+
+
 
 
 
@@ -189,7 +189,7 @@ export const setbio = async (req, res) => {
         const userId = req.user.id;
         const { bio, location } = req.body;
 
-        
+
         if (bio && bio.length > 200) {
             return res.status(400).json({ message: "Bio must be under 200 characters" });
         }
@@ -199,17 +199,17 @@ export const setbio = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        
+
         if (bio) user.bio = bio;
         if (location) user.location = location;
 
-      
+
         if (req.file?.profilePics) {
             const uploadPP = await cloudinary.uploader.upload(req.file.profilePics);
             user.profilePics = uploadPP.secure_url;
         }
 
-       
+
         if (req.file?.coverPic) {
             const uploadCover = await cloudinary.uploader.upload(req.file.coverPic);
             user.coverPic = uploadCover.secure_url;
@@ -230,7 +230,7 @@ export const setbio = async (req, res) => {
 export const getbio = async (req, res) => {
     try {
         const userId = req.params.id; // get user ID from URL
-        const user = await User.findById(userId).select("-password, -email"); 
+        const user = await User.findById(userId).select("-password, -email");
 
         if (!user) {
             return res.status(404).json({ message: "Bio not found" });
@@ -243,7 +243,17 @@ export const getbio = async (req, res) => {
     }
 };
 
+//get all users except current user
+export const getAllUsers = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const users = await User.find({ _id: { $ne: userId } }).select("-password, -email");
 
-
+        res.status(200).json(users);
+    } catch (error) {
+        console.log("Error:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
 
 

@@ -99,6 +99,7 @@ export const getAllPost = async (req, res) => {
         const posts = await Post.find({})
         .sort({ createdAt: -1 })
         .populate('userId','fullname profilepic')
+        console.log(posts)
         res.status(200).json({ success:true, posts });
     } catch (err) {
         console.error("Get posts error:", err);

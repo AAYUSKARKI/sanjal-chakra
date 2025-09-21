@@ -3,31 +3,14 @@ import React, { useState } from 'react'
 import moment from 'moment'
 import { dummyUserData } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
-
-// {
-//             "_id": "68ce0d70adf4f1a34b27739c",
-//             "userId": {
-//                 "_id": "68cbdc1e81c30e29f553cf75",
-//                 "fullname": "AAYUS KARKI"
-//             },
-//             "text": "ok",
-//             "image": [
-//                 "https://res.cloudinary.com/dczqoleux/image/upload/v1758334320/posts/ksd6dk8j7oh8xx7okm2d.png",
-//                 "https://res.cloudinary.com/dczqoleux/image/upload/v1758334321/posts/zsmagn6xrmqp1zt98g42.png"
-//             ],
-//             "likes": [],
-//             "comments": [],
-//             "createdAt": "2025-09-20T02:12:00.686Z",
-//             "updatedAt": "2025-09-20T02:12:00.686Z",
-//             "__v": 0
-//         },
+import useAuth from '../hooks/useAuth'
 
 const PostCard = ({post}) => {
-    console.log(post)
+    // console.log(post)
     const postWithHashtags = post.text.replace(/(#\w+)/g, '<span class="text-indigo-600">$1</span>')
 
     const [likes] = useState(post.likes)
-    const currentUser = dummyUserData
+    const currentUser = useAuth().user;
 
     const handleLike = async () => {
      }

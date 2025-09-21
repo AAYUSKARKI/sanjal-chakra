@@ -1,5 +1,5 @@
 import express from "express";
-import { followUser, unfollowUser, getFollowers, getFollowing, setbio, getbio,} from "../controllers/user.controller.js";
+import { followUser, unfollowUser, getFollowers, getFollowing, setbio, getbio,getAllUsers} from "../controllers/user.controller.js";
 import { getMyProfile } from "../controllers/user.controller.js";
 import protectRoute from "../middleware/auth.middleware.js";
 
@@ -21,6 +21,9 @@ router.put('/', protectRoute, setbio);
 
 //get a bio
 router.get('/', protectRoute,getbio);
+
+//get all users
+router.get('/all',protectRoute,getAllUsers);
 
 
 

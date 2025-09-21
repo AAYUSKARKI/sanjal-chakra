@@ -218,21 +218,13 @@ export const AuthProvider = ({ children }) => {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
       Cookies.set('token', data.data.token);
 
-      // Mock successful login response
-      const mockUser = {
-        id: data.data._id,
-        fullName: data.data.fullName,
-        email: data.data.email,
-        isVerified: true,
-      };
-
       const mockTokens = {
         accessToken: 'mock-access-token-' + Date.now(),
         refreshToken: 'mock-refresh-token-' + Date.now(),
       };
 
       // Save to localStorage
-      saveToStorage(STORAGE_KEYS.USER_DATA, mockUser);
+      saveToStorage(STORAGE_KEYS.USER_DATA, data.data);
       saveToStorage(STORAGE_KEYS.AUTH_TOKEN, mockTokens.accessToken);
       saveToStorage(STORAGE_KEYS.REFRESH_TOKEN, mockTokens.refreshToken);
 
@@ -243,7 +235,7 @@ export const AuthProvider = ({ children }) => {
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: { user: mockUser, tokens: mockTokens },
+        payload: { user: data.data, tokens: mockTokens },
       });
 
       return { success: true, user: mockUser };
