@@ -1,5 +1,5 @@
 import express from "express";
-import { followUser, unfollowUser, getFollowers, getFollowing, setbio, getbio,getAllUsers} from "../controllers/user.controller.js";
+import { followUser, unfollowUser, getFollowers, getFollowing, setbio, getbio,getAllUsers,sendConnectionRequest,acceptConnectionRequest,rejectConnectionRequest,removeConnection,getConnections} from "../controllers/user.controller.js";
 import { getMyProfile } from "../controllers/user.controller.js";
 import protectRoute from "../middleware/auth.middleware.js";
 
@@ -25,6 +25,20 @@ router.get('/', protectRoute,getbio);
 //get all users
 router.get('/all',protectRoute,getAllUsers);
 
+//get my connections
+router.get('/myconnections',protectRoute,getConnections);
+
+//send connection request
+router.post('/:userId/sendrequest',protectRoute,sendConnectionRequest);
+
+//accept connection request
+router.post('/:userId/acceptrequest',protectRoute,acceptConnectionRequest);
+
+//reject connection request
+router.post('/:userId/rejectrequest',protectRoute,rejectConnectionRequest);
+
+//remove connection
+router.post('/:userId/removeconnection',protectRoute,removeConnection);
 
 
 

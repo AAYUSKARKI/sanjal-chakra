@@ -2,20 +2,189 @@ import User from "../models/user.model.js";
 import Notifi from "../models/notification.model.js";
 import Post from "../models/post.model.js";
 
+// SEND CONNECTION REQUEST
+export const sendConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.params; // ID of user to send request to
+    const currentUserId = req.user._id;
 
+    if (userId === String(currentUserId)) {
+      return res.status(400).json({ message: "You cannot send a connection request to yourself" });
+    }
+
+    const userToConnect = await User.findById(userId);
+    if (!userToConnect) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if already connected
+    if (userToConnect.connections.includes(currentUserId)) {
+      return res.status(400).json({ message: "You are already connected with this user" });
+    }
+
+    // Check if request already sent
+    if (userToConnect.connectionRequests.includes(currentUserId)) {
+      return res.status(400).json({ message: "Connection request already sent" });
+    }
+
+    // Add connection request
+    userToConnect.connectionRequests.push(currentUserId);
+    await userToConnect.save();
+
+    // Create notification
+    const notification = new Notification({
+      from: currentUserId,
+      to: userId,
+      type: "connection_request",
+      message: `${req.user.fullname} sent you a connection request`
+    });
+    await notification.save();
+
+    res.status(200).json({ message: "Connection request sent successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ACCEPT CONNECTION REQUEST
+export const acceptConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.params; // ID of user whose request is being accepted
+    const currentUserId = req.user._id;
+
+    if (userId === String(currentUserId)) {
+      return res.status(400).json({ message: "You cannot accept a request from yourself" });
+    }
+
+    const currentUser = await User.findById(currentUserId);
+    const userToConnect = await User.findById(userId);
+
+    if (!userToConnect || !currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if request exists
+    if (!currentUser.connectionRequests.includes(userId)) {
+      return res.status(400).json({ message: "No connection request from this user" });
+    }
+
+    // Add to mutual connections
+    if (!currentUser.connections.includes(userId)) {
+      currentUser.connections.push(userId);
+      userToConnect.connections.push(currentUserId);
+    }
+
+    // Remove from connection requests
+    currentUser.connectionRequests.pull(userId);
+    await currentUser.save();
+    await userToConnect.save();
+
+    // Create notification
+    const notification = new Notification({
+      from: currentUserId,
+      to: userId,
+      type: "connection_accepted",
+      message: `${req.user.fullname} accepted your connection request`
+    });
+    await notification.save();
+
+    res.status(200).json({ message: "Connection request accepted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// REJECT CONNECTION REQUEST
+export const rejectConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.params; // ID of user whose request is being rejected
+    const currentUserId = req.user._id;
+
+    if (userId === String(currentUserId)) {
+      return res.status(400).json({ message: "You cannot reject a request from yourself" });
+    }
+
+    const currentUser = await User.findById(currentUserId);
+    if (!currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if request exists
+    if (!currentUser.connectionRequests.includes(userId)) {
+      return res.status(400).json({ message: "No connection request from this user" });
+    }
+
+    // Remove from connection requests
+    currentUser.connectionRequests.pull(userId);
+    await currentUser.save();
+
+    res.status(200).json({ message: "Connection request rejected successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// REMOVE CONNECTION
+export const removeConnection = async (req, res) => {
+  try {
+    const { userId } = req.params; // ID of user to remove from connections
+    const currentUserId = req.user._id;
+
+    if (userId === String(currentUserId)) {
+      return res.status(400).json({ message: "You cannot remove yourself from connections" });
+    }
+
+    const currentUser = await User.findById(currentUserId);
+    const userToRemove = await User.findById(userId);
+
+    if (!userToRemove || !currentUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if connected
+    if (!currentUser.connections.includes(userId)) {
+      return res.status(400).json({ message: "You are not connected with this user" });
+    }
+
+    // Remove from mutual connections
+    currentUser.connections.pull(userId);
+    userToRemove.connections.pull(currentUserId);
+    await currentUser.save();
+    await userToRemove.save();
+
+    res.status(200).json({ message: "Connection removed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+// get connections
+export const getConnections = async (req, res) => {
+    try {
+        const userId = req.params.id; // get user ID from URL
+        const user = await User.findById(userId).select("-password, -email");
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        console.log("Error:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+}
 //  FOLLOW USER 
 export const followUser = async (req, res) => {
     try {
         const { userId } = req.params; // ID of user to follow
         const currentUser = req.user._id;
-
+        console.log("current user", req.user)
+        console.log(userId, currentUser)
         if (userId === String(currentUser)) {
             return res.status(400).json({ message: "You cannot follow yourself" });
         }
 
         const userToFollow = await User.findById(userId);
         if (!userToFollow) return res.status(404).json({ message: "User not found" });
-
+        console.log("user to follow", userToFollow)
         // Check if already following
         if (userToFollow.followers.includes(currentUser)) {
             return res.status(400).json({ message: "Already following this user" });
@@ -27,24 +196,17 @@ export const followUser = async (req, res) => {
 
         await User.findByIdAndUpdate(currentUser, { $push: { following: userId } });
 
-        res.status(200).json({ message: "User followed successfully" });
-
         //CREATE NOTIFICATION
-        const notification = new Notification({
-            sender: currentUser,
-            receiver: userId,
+        const notification = new Notifi({
+            from: currentUser,
+            to: userId,
             type: "follow",
+            message: `${req.user.fullname} followed you`,
         });
         await notification.save();
+        res.status(200).json({ message: "User followed successfully" });
 
-
-
-
-
-
-
-
-
+        
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -83,7 +245,7 @@ export const unfollowUser = async (req, res) => {
 export const getFollowers = async (req, res) => {
     try {
         const { userId } = req.params;
-        const user = await User.findById(userId).populate("followers", "username fullname profilepiecture");
+        const user = await User.findById(userId).populate("followers", "username fullname profilepiecture bio");
         if (!user) return res.status(404).json({ message: "User not found" });
 
         res.status(200).json(user.followers);
@@ -96,7 +258,7 @@ export const getFollowers = async (req, res) => {
 export const getFollowing = async (req, res) => {
     try {
         const { userId } = req.params;
-        const user = await User.findById(userId).populate("following", "username fullname profilepiecture");
+        const user = await User.findById(userId).populate("following", "username fullname profilepiecture bio");
         if (!user) return res.status(404).json({ message: "User not found" });
 
         res.status(200).json(user.following);

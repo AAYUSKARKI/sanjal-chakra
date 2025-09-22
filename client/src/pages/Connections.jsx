@@ -1,17 +1,50 @@
-import React, { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {Users, UserPlus, UserCheck, UserRoundPen, MessageSquare} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { dummyConnectionsData as connections,
-         dummyFollowersData as followers,
-         dummyFollowingData as following,
          dummyPendingConnectionsData as pendingConnections
      } from '../assets/assets'
-
+import useAuth from '../hooks/useAuth'
+import API from '../api/api'
 const Connections = () => {
 
   const [currentTab, setCurrentTab] = useState('Followers')
-
+  const [followers, setFollowers] = useState([])
+  const [following, setFollowing] = useState([])
+  const {user} = useAuth()
 const navigate = useNavigate()
+
+const getFollowers = async () => {
+  try {
+    const {data} = await API.get(`/users/${user._id}/followers`, {withCredentials: true})
+    setFollowers(data)
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+const getFollowing = async () => {
+  try {
+    const {data} = await API.get(`/users/${user._id}/following`, {withCredentials: true})
+    setFollowing(data)
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+const unfollowUser = async (userId) => {
+  try {
+    await API.put(`/users/${userId}/unfollow`, {}, {withCredentials: true})
+    getFollowing()
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+useEffect(() => {
+  getFollowers()
+  getFollowing()
+}, [])
 
 const dataArray = [
   {label: 'Followers', value: followers, icon: Users},
@@ -59,12 +92,12 @@ const dataArray = [
               {/* Connections */}
               <div className='flex flex-wrap gap-6 mt-6'>
                    {dataArray.find((item)=>item.label === currentTab).value.map((user)=>(
-                    <div key={user._id} className='w-full max-w-88 flex gap-5 p-6 bg-white shadow rounded-md'>
-                      <img src={user.profile_picture} alt="" className="rounded-full w-12 h-12 shadow-md mx-auto"/>
+                    <div key={Math.random() } className='w-full max-w-88 flex gap-5 p-6 bg-white shadow rounded-md'>
+                      <img src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className="rounded-full w-12 h-12 shadow-md mx-auto"/>
                       <div className='flex-1'>
-                        <p className='font-medium text-slate-700'>{user.full_name}</p>
-                        <p className='text-slate-500'>@{user.username}</p>
-                        <p className='text-sm text-gray-600'>@{user.bio.slice(0, 30)}...</p>
+                        <p className='font-medium text-slate-700'>{user.fullname}</p>
+                        <p className='text-slate-500'>@{user.fullname}</p>
+                        <p className='text-sm text-gray-600'>{user.bio.slice(0, 30)}This is a bio</p>
                         <div className='flex max-sm:flex-col gap-2 mt-4'>
                             {
                               <button onClick={()=> navigate(`/profile/${user._id}`)} className='w-full p-2 text-sm rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white cursor-pointer'>
@@ -74,7 +107,7 @@ const dataArray = [
 
                             {
                                currentTab === 'Following' && (
-                                <button className='w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-black active:scale-95 transition cursor-pointer'>
+                                <button onClick={()=> unfollowUser(user._id)} className='w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-black active:scale-95 transition cursor-pointer'>
                                   Unfollow
                                 </button>
                                )

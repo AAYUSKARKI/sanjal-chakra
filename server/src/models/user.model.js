@@ -1,6 +1,11 @@
 import mongoose from "mongoose"
 const userSchema = mongoose.Schema(
   {
+     username: {
+      type: String,
+      unique: true,
+      sparse: true // Allows null/undefined values while enforcing uniqueness
+    },
     fullname: {
       type: String,
       required: true
@@ -10,17 +15,12 @@ const userSchema = mongoose.Schema(
       required: true,
       unique: true,
     },
-
-
     socketId:String,
-
-
     password: {
       type: String,
       required: true,
       minLength:8
     },
-
     verifyOtp: {
       type: String,
       default: '',
@@ -40,16 +40,11 @@ const userSchema = mongoose.Schema(
     reSetOtpExpireAT: {
       type: Number,
       default: 0,
-
     },
-
-
-
     profilePics: {
       type: String,
       default:''
     },
-
     coverPic:{
       type:String,
       default:'',
@@ -60,31 +55,26 @@ const userSchema = mongoose.Schema(
       default:'',
     },
     location:{
-
       type:String,
       maxlength: 200,
       default:'',
-
     },
-
     followers:[{
       type:mongoose.Schema.Types.ObjectId,
-      ref:"User"
-      
+      ref:"User"  
     }],
-    
     following:[{
-
       type:mongoose.Schema.Types.ObjectId,
       ref:"User"
-,
-
-
-
-    }]
-
-
-
+    }],
+    connections:[{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"User"
+    }],
+    connectionsRequest:[{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"User"
+    }],
   },
   {
     timestamps: true,

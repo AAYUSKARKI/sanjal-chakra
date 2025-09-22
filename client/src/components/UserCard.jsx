@@ -1,11 +1,13 @@
 import { MapPin, MessageCircle, Plus, UserPlus } from 'lucide-react'
 import useAuth from '../hooks/useAuth'
-
+import API from '../api/api'
 const UserCard = ({user}) => {
+  console.log(user)
   const {user: currentUser} = useAuth()
   // console.log(currentUser)
-  const handleFollow = async () => {
-
+  const handleFollow = async (userId) => {
+    const res = await API.put(`/users/${userId}/follow`, {}, {withCredentials: true})
+    console.log(res.data)
   }
   const handleConnectionRequest = async () => {
     
@@ -31,7 +33,7 @@ const UserCard = ({user}) => {
         
         <div className='flex mt-4 gap-2'>
           {/* Follow Button */}
-          <button onClick={handleFollow} disabled={currentUser?.following.includes(user._id)} className='w-full py-2 rounded-md flex justify-center items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale:95 transition text-white cursor-pointer'> 
+          <button onClick={()=> handleFollow(user._id)} disabled={currentUser?.following.includes(user._id)} className='w-full py-2 rounded-md flex justify-center items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale:95 transition text-white cursor-pointer'> 
             <UserPlus className='w-4 h-4'/> {currentUser?.following.includes(user._id) ? 'Following' : 'Follow' }
           </button>
 
