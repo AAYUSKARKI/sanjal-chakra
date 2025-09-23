@@ -52,11 +52,12 @@ export const sendConnectionRequest = async (req, res) => {
 export const getPendingConnectionRequests = async (req, res) => {
   try {
     const {userId} = req.params; // get user ID from URL
-    const user = await User.findById(userId).populate("connectionsRequest", "username fullname profilepiecture bio");
+    const user = await User.findById(userId).populate("connectionRequests", "username fullname profilepiecture bio");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json(user.connectionsRequest);
+    console.log(user)
+    res.status(200).json(user.connectionRequests);
   } catch (error) {
     console.log("Error:", error);
     res.status(500).json({ message: "Server Error", error: error.message });

@@ -125,7 +125,7 @@ export const login = async (req, res) => {
             followers:user.followers,
             following:user.following,
             connections:user.connections,
-            connectionsRequest:user.connectionsRequest,
+            connectionsRequest:user.connectionRequests,
             token
         })
 

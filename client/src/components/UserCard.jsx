@@ -4,7 +4,7 @@ import API from '../api/api'
 const UserCard = ({user}) => {
   console.log(user)
   const {user: currentUser} = useAuth()
-  // console.log(currentUser)
+  // console.log(currentUser.following)
   const handleFollow = async (userId) => {
     const res = await API.put(`/users/${userId}/follow`, {}, {withCredentials: true})
     console.log(res.data)

@@ -79,10 +79,6 @@ const userSchema = mongoose.Schema(
       default:[],
       ref:"User"
     }],
-    connectionsRequest:[{
-      type:mongoose.Schema.Types.ObjectId,
-      ref:"User"
-    }],
   },
   {
     timestamps: true,
