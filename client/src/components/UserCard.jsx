@@ -9,8 +9,9 @@ const UserCard = ({user}) => {
     const res = await API.put(`/users/${userId}/follow`, {}, {withCredentials: true})
     console.log(res.data)
   }
-  const handleConnectionRequest = async () => {
-    
+  const handleConnectionRequest = async (userId) => {
+    const res = await API.post(`/users/${userId}/sendrequest`, {}, {withCredentials: true})
+    console.log(res.data)
   }
 
   return (
@@ -39,7 +40,7 @@ const UserCard = ({user}) => {
 
           {/* Connection Request Button /Message Button */}
 
-          <button onClick={handleConnectionRequest} className='flex items-center justify-center w-16 border text-slate-500 group rounded-md cursor-pointer active:scale-95 transition'>
+          <button onClick={()=> handleConnectionRequest(user._id)} className='flex items-center justify-center w-16 border text-slate-500 group rounded-md cursor-pointer active:scale-95 transition'>
             {
                 currentUser?.followers.includes(user._id) ? 
                 <MessageCircle className='w-5 h-5 group-hover:scale-105 transition'/>

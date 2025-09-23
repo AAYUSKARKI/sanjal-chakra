@@ -22,6 +22,8 @@ export const sendConnectionRequest = async (req, res) => {
       return res.status(400).json({ message: "You are already connected with this user" });
     }
 
+    console.log(userToConnect.connectionRequests,userToConnect.connectionRequests.includes(currentUserId))
+
     // Check if request already sent
     if (userToConnect.connectionRequests.includes(currentUserId)) {
       return res.status(400).json({ message: "Connection request already sent" });
@@ -32,10 +34,10 @@ export const sendConnectionRequest = async (req, res) => {
     await userToConnect.save();
 
     // Create notification
-    const notification = new Notification({
+    const notification = new Notifi({
       from: currentUserId,
       to: userId,
-      type: "connection_request",
+      type: "connect",
       message: `${req.user.fullname} sent you a connection request`
     });
     await notification.save();
@@ -43,6 +45,21 @@ export const sendConnectionRequest = async (req, res) => {
     res.status(200).json({ message: "Connection request sent successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Pending connection requests
+export const getPendingConnectionRequests = async (req, res) => {
+  try {
+    const {userId} = req.params; // get user ID from URL
+    const user = await User.findById(userId).populate("connectionsRequest", "username fullname profilepiecture bio");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json(user.connectionsRequest);
+  } catch (error) {
+    console.log("Error:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
   }
 };
 
@@ -80,10 +97,10 @@ export const acceptConnectionRequest = async (req, res) => {
     await userToConnect.save();
 
     // Create notification
-    const notification = new Notification({
+    const notification = new Notifi({
       from: currentUserId,
       to: userId,
-      type: "connection_accepted",
+      type: "connect",
       message: `${req.user.fullname} accepted your connection request`
     });
     await notification.save();
@@ -160,12 +177,12 @@ export const removeConnection = async (req, res) => {
 // get connections
 export const getConnections = async (req, res) => {
     try {
-        const userId = req.params.id; // get user ID from URL
-        const user = await User.findById(userId).select("-password, -email");
+        const {userId }= req.params; // get user ID from URL
+        const user = await User.findById(userId).populate("connections", "username fullname profilepiecture bio");
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        res.status(200).json(user);
+        res.status(200).json(user.connections);
     } catch (error) {
         console.log("Error:", error);
         res.status(500).json({ message: "Server Error", error: error.message });
@@ -176,15 +193,15 @@ export const followUser = async (req, res) => {
     try {
         const { userId } = req.params; // ID of user to follow
         const currentUser = req.user._id;
-        console.log("current user", req.user)
-        console.log(userId, currentUser)
+        // console.log("current user", req.user)
+        // console.log(userId, currentUser)
         if (userId === String(currentUser)) {
             return res.status(400).json({ message: "You cannot follow yourself" });
         }
 
         const userToFollow = await User.findById(userId);
         if (!userToFollow) return res.status(404).json({ message: "User not found" });
-        console.log("user to follow", userToFollow)
+        // console.log("user to follow", userToFollow)
         // Check if already following
         if (userToFollow.followers.includes(currentUser)) {
             return res.status(400).json({ message: "Already following this user" });

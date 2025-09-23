@@ -13,7 +13,7 @@ const notifiSchema = new mongoose.Schema(
         },
         type: {
             type: String, // 'message', 'like', 'comment', 'follow'
-            enum: ["follow", "like", "comment","message"], // we can reuse later
+            enum: ["follow", "like", "comment","message","connect"], // we can reuse later
             required: true,
         },
         message: {

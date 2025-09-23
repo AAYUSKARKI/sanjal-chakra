@@ -61,14 +61,22 @@ const userSchema = mongoose.Schema(
     },
     followers:[{
       type:mongoose.Schema.Types.ObjectId,
+      default:[],
       ref:"User"  
     }],
     following:[{
       type:mongoose.Schema.Types.ObjectId,
+      default:[],
       ref:"User"
     }],
     connections:[{
       type:mongoose.Schema.Types.ObjectId,
+      default:[],
+      ref:"User"
+    }],
+    connectionRequests:[{
+      type:mongoose.Schema.Types.ObjectId,
+      default:[],
       ref:"User"
     }],
     connectionsRequest:[{

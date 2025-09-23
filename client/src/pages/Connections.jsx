@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import {Users, UserPlus, UserCheck, UserRoundPen, MessageSquare} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { dummyConnectionsData as connections,
-         dummyPendingConnectionsData as pendingConnections
-     } from '../assets/assets'
 import useAuth from '../hooks/useAuth'
 import API from '../api/api'
 const Connections = () => {
@@ -11,6 +8,8 @@ const Connections = () => {
   const [currentTab, setCurrentTab] = useState('Followers')
   const [followers, setFollowers] = useState([])
   const [following, setFollowing] = useState([])
+  const [connections, setConnections] = useState([])
+  const [pendingConnections, setPendingConnections] = useState([])
   const {user} = useAuth()
 const navigate = useNavigate()
 
@@ -32,6 +31,24 @@ const getFollowing = async () => {
   }
 }
 
+const getConnections = async () => {
+  try {
+    const {data} = await API.get(`/users/${user._id}/getconnections`, {withCredentials: true})
+    setConnections(data)
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+const getPendingConnectionRequests = async () => {
+  try {
+    const {data} = await API.get(`/users/${user._id}/pendingconnections`, {withCredentials: true})
+    setPendingConnections(data)
+  } catch (error) {
+    console.log(error)
+  }
+}
+
 const unfollowUser = async (userId) => {
   try {
     await API.put(`/users/${userId}/unfollow`, {}, {withCredentials: true})
@@ -44,6 +61,8 @@ const unfollowUser = async (userId) => {
 useEffect(() => {
   getFollowers()
   getFollowing()
+  getConnections()
+  getPendingConnectionRequests()
 }, [])
 
 const dataArray = [

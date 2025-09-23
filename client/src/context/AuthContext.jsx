@@ -274,7 +274,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       clearMessages();
 
-      data = await  API.post("auth/verifyOtp",{email, otp});
+      const data = await  API.post("auth/verifyOtp",{email, otp});
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
 
 
