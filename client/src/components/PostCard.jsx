@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import useAuth from '../hooks/useAuth'
 
 const PostCard = ({post}) => {
-    // console.log(post)
+    console.log(post)
     const postWithHashtags = post.text.replace(/(#\w+)/g, '<span class="text-indigo-600">$1</span>')
 
     const [likes] = useState(post.likes)
@@ -33,7 +33,7 @@ const PostCard = ({post}) => {
         </div>
     </div>
     {/* Content */}
-    {post.content && <div className='text-gray-800 text-sm whitespace-pre-line' dangerouslySetInnerHTML={{__html: postWithHashtags}}/>}
+    {post.text && <div className='text-gray-800 text-sm whitespace-pre-line' dangerouslySetInnerHTML={{__html: postWithHashtags}}/>}
      
      {/* Images */}
      <div className='grid grid-cols-2 gap-2'>

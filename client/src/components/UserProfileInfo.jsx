@@ -1,6 +1,5 @@
 import { Calendar, MapPin, PenBox, Verified } from "lucide-react";
 import moment from "moment";
-import React from "react";
 
 const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
   return (
@@ -18,12 +17,12 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {user.fullName}
+                  {user.fullName || user.fullname }
                 </h1>
                 <Verified className="w-6 h-6 text-blue-500" />
               </div>
               <p className="text-gray-600">
-                {user.username ? `@${user.fullName}` : "Add a username"}
+                {user.fullname || user.fullName ? `@${user.fullName || user.fullname}` : "Add a username"}
               </p>
             </div>
             {/* If user is not on others profile that means he is opening his profile so we will give edit button*/}

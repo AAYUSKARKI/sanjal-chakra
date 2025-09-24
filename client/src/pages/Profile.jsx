@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Loading from '../components/Loading'
 import UserProfileInfo from '../components/UserProfileInfo'
@@ -7,22 +7,37 @@ import moment from 'moment'
 import ProfileModal from '../components/ProfileModal'
 import useAuth from '../hooks/useAuth'
 import { getMyPosts } from '../api/api'
+import API from '../api/api'
 const Profile = () => {
 
- const {profileId} =useParams()
+ const {profileID} =useParams()
  const {user}= useAuth()
  const [posts, setPosts] = useState([])
+ const [profileUser, setProfileUser] = useState(null)
  const [activeTab, setActiveTab] = useState('posts')
  const [showEdit, setShowEdit] = useState(false)
-
- const fetchPost = async () => {
-  const data = await getMyPosts()
-  setPosts(data.posts)
- }
- useEffect(()=>{
-      fetchPost()
- },[])
-
+  
+useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (profileID && profileID !== user._id) {
+          // Fetch another user's profile
+          const { data } = await API.get(`/users/${profileID}`, { withCredentials: true });
+          setProfileUser(data.user);
+          setPosts(data.posts || []);
+        } else {
+          // Use logged-in user's data
+          const data = await getMyPosts();
+          setProfileUser(user);
+          setPosts(data.posts || []);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+    fetchData();
+  }, [profileID, user]);
+  console.log(profileUser)
   return user ? (
     <div className='relative h-full overflow-y-scroll bg-gray-50 p-6'>
       <div className='max-w-3xl mx-auto'>
@@ -30,10 +45,10 @@ const Profile = () => {
          <div className='bg-white rounded-2xl shadow overflow-hidden'>
                {/* Cover Photo */}
                <div className='h-40 md:h-56 bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200'>
-                   {user && <img src={user.cover_photo || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='w-full h-full object-cover'/> }
+                   {user && <img src={profileUser && profileUser?.cover_photo ? profileUser.cover_photo : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='w-full h-full object-cover'/> }
                </div>
                {/* User Info */}
-               <UserProfileInfo user={user} posts={posts} profileId={profileId} setShowEdit={setShowEdit}/>
+               <UserProfileInfo user={profileID ? profileUser : user} posts={posts} profileId={profileID} setShowEdit={setShowEdit}/>
           </div>
 
           {/* Tabs */}

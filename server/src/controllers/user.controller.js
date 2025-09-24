@@ -350,7 +350,7 @@ export const getUserProfile = async (req, res) => {
             currentUser.following.some(f => String(f._id) === String(follower._id))
         );
 
-        const posts = await Post.find({ userId }).sort({ createdAt: -1 });
+        const posts = await Post.find({ userId }).sort({ createdAt: -1 }).populate("userId", "fullname profilePics");
 
         res.status(200).json({
             user,

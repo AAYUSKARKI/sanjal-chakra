@@ -1,10 +1,12 @@
 import express from "express";
-import { followUser, unfollowUser, getFollowers, getFollowing, setbio, getbio,getAllUsers,sendConnectionRequest,acceptConnectionRequest,rejectConnectionRequest,removeConnection,getConnections,getPendingConnectionRequests} from "../controllers/user.controller.js";
+import { followUser, unfollowUser, getFollowers,getUserProfile, getFollowing, setbio, getbio,getAllUsers,sendConnectionRequest,acceptConnectionRequest,rejectConnectionRequest,removeConnection,getConnections,getPendingConnectionRequests} from "../controllers/user.controller.js";
 import { getMyProfile } from "../controllers/user.controller.js";
 import protectRoute from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
+//get all users
+router.get('/all',protectRoute,getAllUsers);
 // follow & unfollow
 router.put("/:userId/follow", protectRoute, followUser);
 router.put("/:userId/unfollow", protectRoute, unfollowUser);
@@ -12,6 +14,9 @@ router.put("/:userId/unfollow", protectRoute, unfollowUser);
 // get followers & following (protected)
 router.get("/:userId/followers", protectRoute, getFollowers);
 router.get("/:userId/following", protectRoute, getFollowing);
+
+// get user profile
+router.get("/:userId", protectRoute, getUserProfile);
 
 // get own profileic
 router.get("/me", protectRoute, getMyProfile);
@@ -22,8 +27,7 @@ router.put('/', protectRoute, setbio);
 //get a bio
 router.get('/', protectRoute,getbio);
 
-//get all users
-router.get('/all',protectRoute,getAllUsers);
+
 
 //get connections
 router.get('/:userId/getconnections',protectRoute,getConnections);

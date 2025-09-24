@@ -59,10 +59,10 @@ export const notifyFollowers = async (userId, userName, postId) => {
 export const createPost = async (req, res) => {
     try {
         const userId = req.user._id;
-        const {text} = req.body;
+        const { text } = req.body;
         const image = req.files;
 
-       
+
         if (!text && (!image || image.length === 0)) {
             return res.status(400).json({ message: "Text or image is required" });
         }
@@ -70,7 +70,7 @@ export const createPost = async (req, res) => {
         let uploadedImages = [];
 
         if (image && image.length > 0) {
-           
+
             const imagesArray = Array.isArray(image) ? image : [image];
 
             for (const img of imagesArray) {
@@ -97,10 +97,15 @@ export const createPost = async (req, res) => {
 export const getAllPost = async (req, res) => {
     try {
         const posts = await Post.find({})
-        .sort({ createdAt: -1 })
-        .populate('userId','fullname profilepic')
-        console.log(posts)
-        res.status(200).json({ success:true, posts });
+            .sort({ createdAt: -1 })
+            .populate('userId', 'fullname profilepic')
+        // console.log(posts)
+
+        //filter null userId posts
+        const filteredPosts = posts.filter(post => post.userId !== null);
+
+        res.status(200).json({ success: true, posts: filteredPosts });
+
     } catch (err) {
         console.error("Get posts error:", err);
         res.status(500).json({ message: "Internal server error" });
