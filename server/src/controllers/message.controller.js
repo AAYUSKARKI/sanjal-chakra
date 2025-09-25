@@ -5,7 +5,8 @@ import { createNotification } from "./notification.controller.js";
 import fs from "fs/promises";
 
 export const sendMessage = async (req, res) => {
-    const { sender, receiver, text } = req.body;
+    const { receiver } = req.params;
+    const { sender, text, message_type } = req.body;
     const image = req.file;
     let imageUrl = '';
 
@@ -36,24 +37,28 @@ export const sendMessage = async (req, res) => {
             sender,
             receiver,
             text,
-            imageUrl,
+            media_url: imageUrl,
+            message_type
         });
 
         // Emit message to receiver in real-time
         emitToUser(receiver, "receive-message", {
-            messageId: message._id,
+            _id: message._id,
             sender,
+            receiver,
             text,
+            message_type,
+            media_url: imageUrl,
             imageUrl,
             createdAt: message.createdAt,
         });
 
         // Create a notification for receiver
         await createNotification({
-            userId: receiver,
+            to: receiver,
+            from: sender,
             type: "message",
             message: `${sender} sent you a message`,
-            referenceId: message._id,
         });
 
         // Respond with message data
@@ -64,11 +69,25 @@ export const sendMessage = async (req, res) => {
                 sender: message.sender,
                 receiver: message.receiver,
                 text: message.text,
-                imageUrl: message.imageUrl,
+                message_type: message.message_type,
+                media_url: message.media_url,
                 createdAt: message.createdAt,
             }
         });
 
+    } catch (error) {
+        console.error("Message error:", error);
+        return res.status(500).json({ message: "Internal Server Error!" });
+    }
+};
+
+export const getMessages = async (req, res) => {
+    const sender = req.user._id;
+    const { receiver } = req.params;
+
+    try {
+        const messages = await Message.find({ $or: [{ sender: sender, receiver: receiver }, { sender: receiver, receiver: sender }] }).sort({ createdAt: -1 });
+        return res.status(200).json({ messages });
     } catch (error) {
         console.error("Message error:", error);
         return res.status(500).json({ message: "Internal Server Error!" });
