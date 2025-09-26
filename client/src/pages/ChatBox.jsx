@@ -7,7 +7,6 @@ import API from '../api/api'
 import { socket } from '../utils/socket'
 
 const ChatBox = () => {
-
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
   const [image, setImage] = useState(null)
@@ -43,12 +42,14 @@ const ChatBox = () => {
   useEffect(() => {
     if (user) {
       socket.connect();
-      socket.emit("register", userId);
       socket.emit("register", user._id);
 
       socket.on("receive-message", (message) => {
         console.log("New message received:", message);
-        if (message.sender === user._id || message.receiver === userId) {
+        if (
+          (message.sender === user._id && message.receiver === userId) ||
+          (message.sender === userId && message.receiver === user._id)
+        ) {
           console.log("Updating messages state with new message");
           setMessages((prevMessages) => [...prevMessages, message]);
         }
@@ -122,7 +123,7 @@ const ChatBox = () => {
 
           {
             messages.toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).map((message, index) => (
-              <div key={index} className={`flex flex-col ${message.to_user_id !== user._id ? 'items-start' : 'items-end'}`}>
+              <div key={index} className={`flex flex-col ${message.receiver !== user._id ? 'items-start' : 'items-end'}`}>
                 <div className={`p-2 text-sm max-w-sm bg-white text-slate-700 rounded-lg shadow ${message.to_user_id !== user._id ? 'rounded-bl-none' : 'rounded-br-none'}`}>
                   {
                     message.message_type === 'image' && <img src={message.media_url}

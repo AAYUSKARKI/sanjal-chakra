@@ -12,7 +12,7 @@ export const createNotification = async ({
     onlineUsers = null,
 }) => {
     try {
-        console.log("Creating notification:", { to, from, type, message, relatedPost });
+        // console.log("Creating notification:", { to, from, type, message, relatedPost });
         const notifi = await Notifi.create({
             to,
             from,

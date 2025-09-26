@@ -40,7 +40,7 @@ export const sendMessage = async (req, res) => {
             media_url: imageUrl,
             message_type
         });
-
+   console.log("ready to emit");
         // Emit message to receiver in real-time
         emitToUser(receiver, "receive-message", {
             _id: message._id,

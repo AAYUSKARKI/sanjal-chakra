@@ -1,3 +1,4 @@
+import { on } from 'events';
 import { Server } from 'socket.io';
 
 let io;
@@ -101,7 +102,10 @@ export const setUpSocket = (server) => {
 
 export const emitToUser= (userId,event,payload) =>{
     if(!io) return;
+    console.log(onlineUsers);
+    console.log(userId);
     const socketId= onlineUsers.get(userId.toString());
+    console.log(socketId)
     if (socketId) {
         io.to(socketId).emit(event, payload);
     }
