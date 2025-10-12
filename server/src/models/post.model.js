@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import User from "./user.model.js";
 
 const postSchema = mongoose.Schema(
    {
@@ -68,7 +67,6 @@ const postSchema = mongoose.Schema(
                ref: "Post" 
 
             },
-
             createdAt: {
                type: Date,
                default: Date.now,

@@ -99,6 +99,14 @@ export const getAllPost = async (req, res) => {
         const posts = await Post.find({})
             .sort({ createdAt: -1 })
             .populate('userId', 'fullname profilepic')
+            .populate({
+                path: 'comments.userId',
+                select: 'fullname profile_picture' // Select only the fields you need
+            })
+            .populate({
+                path: 'comments.replies.userId',
+                select: 'fullname profile_picture' // Select only the fields you need
+            });
         // console.log(posts)
 
         //filter null userId posts
@@ -241,6 +249,17 @@ export const postComment = async (req, res) => {
         post.comments.push(comment);
         await post.save();
 
+        // Populate the userId field of the newly added comment
+        const updatedPost = await Post.findById(req.params.postId)
+            .populate({
+                path: 'comments.userId',
+                select: 'fullname profile_picture' // Select only the fields you need
+            });
+
+        // Get the newly added comment (last one in the comments array)
+        const newComment = updatedPost.comments[updatedPost.comments.length - 1];
+
+        // Handle notification logic
         if (post.userId.toString() !== req.user._id.toString()) {
             const exists = await Notification.findOne({
                 to: post.userId,
@@ -262,7 +281,18 @@ export const postComment = async (req, res) => {
             }
         }
 
-        res.status(201).json({ message: "Comment added", comment, commentsCount: post.comments.length });
+        res.status(201).json({
+            message: "Comment added",
+            comment: {
+                ...newComment.toObject(),
+                userId: {
+                    _id: newComment.userId._id,
+                    fullname: newComment.userId.fullname,
+                    profile_picture: newComment.userId.profile_picture
+                }
+            },
+            commentsCount: updatedPost.comments.length
+        });
     } catch (err) {
         console.error("Comment error:", err);
         res.status(500).json({ message: "Internal server error" });
@@ -280,10 +310,22 @@ export const addReply = async (req, res) => {
         const comment = post.comments.id(commentId);
         if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-        const reply = { userId: req.user._id, text };
+        const reply = { userId: req.user._id, text, createdAt: new Date() };
         comment.replies.push(reply);
         await post.save();
 
+        // Populate the userId for the new reply (and related fields)
+        const updatedPost = await Post.findById(postId)
+            .populate({
+                path: 'comments.replies.userId', // Populate userId in replies within comments
+                select: 'fullname profile_picture' // Select specific fields (adjust if field is 'profilepic')
+            });
+
+        // Find the specific comment and extract the newly added reply
+        const updatedComment = updatedPost.comments.id(commentId);
+        const newReply = updatedComment.replies[updatedComment.replies.length - 1];
+
+        // Handle notification logic (notify comment author if not the same user)
         if (comment.userId.toString() !== req.user._id.toString()) {
             await createNotification({
                 to: comment.userId,
@@ -294,7 +336,7 @@ export const addReply = async (req, res) => {
             });
         }
 
-        res.status(201).json({ message: "Reply added", reply });
+        res.status(201).json({ message: "Reply added", reply: newReply });
     } catch (err) {
         console.error("Add reply error:", err);
         res.status(500).json({ message: "Internal server error" });

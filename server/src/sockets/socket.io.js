@@ -1,7 +1,9 @@
 import { Server } from 'socket.io';
+import { v4 as uuidv4 } from 'uuid'; // Add uuid for unique call IDs
 
 let io;
 const onlineUsers = new Map();
+const activeCalls = new Set(); // Track active calls to prevent re-emission
 
 export const setUpSocket = (server) => {
   io = new Server(server, {
@@ -16,7 +18,7 @@ export const setUpSocket = (server) => {
 
     // Register user with socket
     socket.on('register', (userId) => {
-      socket.userId = userId; // Store userId on socket
+      socket.userId = userId;
       onlineUsers.set(userId, socket.id);
       console.log(`User ${userId} registered with socket ${socket.id}`);
     });
@@ -24,44 +26,52 @@ export const setUpSocket = (server) => {
     // WebRTC signaling events
     socket.on('user-call', ({ to, offer }) => {
       const receiverSocketId = onlineUsers.get(to);
+      const callId = uuidv4(); // Generate unique call ID
       if (receiverSocketId) {
-        console.log(`Emitting incoming-call to ${to} from ${socket.userId}`);
-        io.to(receiverSocketId).emit('incoming-call', { from: socket.userId, offer });
+        console.log(`Emitting incoming-call to ${to} from ${socket.userId} with callId: ${callId}`);
+        activeCalls.add(callId);
+        io.to(receiverSocketId).emit('incoming-call', { from: socket.userId, offer, callId });
       } else {
         console.log(`User ${to} is offline`);
         io.to(socket.id).emit('user-offline', { userId: to });
       }
     });
 
-    socket.on('call-accepted', ({ to, answer }) => {
+    socket.on('call-accepted', ({ to, answer, callId }) => {
       const receiverSocketId = onlineUsers.get(to);
       if (receiverSocketId) {
-        console.log(`Emitting call-accepted to ${to}`);
-        io.to(receiverSocketId).emit('call-accepted', { answer });
+        console.log(`Emitting call-accepted to ${to} with callId: ${callId}`);
+        io.to(receiverSocketId).emit('call-accepted', { answer, callId });
       }
     });
 
-    socket.on('call-rejected', ({ to }) => {
+    socket.on('call-rejected', ({ to, callId }) => {
       const receiverSocketId = onlineUsers.get(to);
       if (receiverSocketId) {
-        console.log(`Emitting call-rejected to ${to}`);
-        io.to(receiverSocketId).emit('call-rejected');
+        console.log(`Emitting call-rejected to ${to} with callId: ${callId}`);
+        activeCalls.delete(callId);
+        io.to(receiverSocketId).emit('call-rejected', { callId });
       }
     });
 
-    socket.on('peer-negotiation-needed', ({ to, candidate }) => {
+    socket.on('peer-negotiation-needed', ({ to, candidate, callId }) => {
       const receiverSocketId = onlineUsers.get(to);
       if (receiverSocketId) {
-        console.log(`Emitting peer-negotiation-needed to ${to} with candidate:`, candidate);
-        io.to(receiverSocketId).emit('peer-negotiation-needed', { candidate });
+        console.log(`Emitting peer-negotiation-needed to ${to} with candidate and callId: ${callId}`);
+        io.to(receiverSocketId).emit('peer-negotiation-needed', { candidate, callId });
       }
     });
 
-    socket.on('end-call', ({ to }) => {
+    socket.on('end-call', ({ to, callId }) => {
+      if (!activeCalls.has(callId)) {
+        console.log(`end-call ignored for callId: ${callId}, already processed`);
+        return;
+      }
       const receiverSocketId = onlineUsers.get(to);
       if (receiverSocketId) {
-        console.log(`Emitting end-call to ${to}`);
-        io.to(receiverSocketId).emit('end-call');
+        console.log(`Emitting end-call to ${to} with callId: ${callId}`);
+        activeCalls.delete(callId);
+        io.to(receiverSocketId).emit('end-call', { callId });
       }
     });
 
