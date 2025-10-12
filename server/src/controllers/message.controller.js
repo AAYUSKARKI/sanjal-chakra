@@ -93,3 +93,25 @@ export const getMessages = async (req, res) => {
         return res.status(500).json({ message: "Internal Server Error!" });
     }
 };
+
+export const fetchLatestMessage = async (req, res) => {
+    const userId = req.user?._id;
+
+    try {
+        const messages = await Message.find({
+            $or: [
+                { sender: userId },
+                { receiver: userId }
+            ]
+        })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .populate('sender', 'fullname profile_picture')
+        .populate('receiver', 'fullname profile_picture');
+
+        return res.status(200).json({ messages });
+    } catch (error) {
+        console.error("Message error:", error);
+        return res.status(500).json({ message: "Internal Server Error!" });
+    }
+};
