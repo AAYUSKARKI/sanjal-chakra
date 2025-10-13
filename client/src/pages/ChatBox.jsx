@@ -23,9 +23,9 @@ const MessageList = ({ messages, user }) => {
           >
             <div
               className={`p-3 text-sm max-w-sm rounded-lg shadow-md ${message.sender === user._id
-                ? 'bg-blue-100 text-slate-700 rounded-br-none'
-                : 'bg-indigo-100 text-slate-700 rounded-bl-none'
-              }`}
+                  ? 'bg-blue-100 text-slate-700 rounded-br-none'
+                  : 'bg-indigo-100 text-slate-700 rounded-bl-none'
+                }`}
             >
               {message.message_type === 'image' && (
                 <img src={message.media_url} className="w-full max-w-sm rounded-lg mb-2" alt="Message media" />
@@ -42,7 +42,7 @@ const MessageList = ({ messages, user }) => {
   );
 };
 
-// Video Call UI Component
+// Video Call UI Component (Framer Motion removed)
 const VideoCallUI = ({
   localVideoRef,
   remoteVideoRef,
@@ -53,36 +53,16 @@ const VideoCallUI = ({
   isCameraOn,
   toggleFullScreen,
   isFullScreen,
-  localStream,
-  remoteStream,
 }) => {
-  // Assign streams only when refs are ready (fixes timing issues)
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-      console.log('Assigned localStream to localVideoRef:', localStream);
-    }
-  }, [localStream, localVideoRef]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      console.log('Assigned remoteStream to remoteVideoRef:', remoteStream);
-    }
-  }, [remoteStream, remoteVideoRef]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (localVideoRef.current) localVideoRef.current.srcObject = null;
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-      console.log('Cleaned up video refs on unmount');
-    };
-  }, []);
+    console.log('VideoCallUI mounted, remoteVideoRef:', remoteVideoRef.current);
+    return () => console.log('VideoCallUI unmounted');
+  }, [remoteVideoRef]);
 
   return (
     <div
-      className={`p-5 flex flex-col md:flex-row gap-4 justify-center bg-gray-100 rounded-lg shadow-lg ${isFullScreen ? 'fixed inset-0 z-50' : ''}`}
+      className={`p-5 flex flex-col md:flex-row gap-4 justify-center bg-gray-100 rounded-lg shadow-lg ${isFullScreen ? 'fixed inset-0 z-50' : ''
+        }`}
     >
       <div className="relative">
         <h3 className="text-sm font-medium mb-2">You</h3>
@@ -109,7 +89,7 @@ const VideoCallUI = ({
           className="w-full md:w-64 rounded-lg shadow"
           onError={(e) => console.error('Remote video error:', e)}
         />
-        {!remoteStream && (
+        {!remoteVideoRef.current?.srcObject && (
           <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
             <span className="text-white">Waiting for remote video...</span>
           </div>
@@ -241,9 +221,16 @@ const ChatBox = () => {
     isCameraOn,
     toggleFullScreen,
     isFullScreen,
-    localStream,
-    remoteStream,
   } = useWebRTC(user?._id, userId);
+
+  // Debug logs for streams and VideoCallUI rendering
+  useEffect(() => {
+    console.log('isVideoCallActive:', isVideoCallActive);
+    console.log('remoteVideoRef.current:', remoteVideoRef.current);
+    console.log('localVideoRef.current:', localVideoRef.current);
+    console.log('remoteVideoRef.current?.srcObject:', remoteVideoRef.current?.srcObject, 'Remote stream');
+    console.log('localVideoRef.current?.srcObject:', localVideoRef.current?.srcObject, 'Local stream');
+  }, [isVideoCallActive, remoteVideoRef, localVideoRef]);
 
   // Fetch receiver data
   const fetchReceiver = async () => {
@@ -441,8 +428,6 @@ const ChatBox = () => {
           isCameraOn={isCameraOn}
           toggleFullScreen={toggleFullScreen}
           isFullScreen={isFullScreen}
-          localStream={localStream}
-          remoteStream={remoteStream}
         />
       )}
 
