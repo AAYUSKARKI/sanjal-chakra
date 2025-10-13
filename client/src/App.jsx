@@ -1,10 +1,9 @@
-import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/auth/Login';
 import Signup from './components/auth/Signup';
 import ForgotPassword from './components/auth/ForgotPassword';
-import ResetPassword from './components/auth/ResetPassword.Jsx';
-import OTPVerification from './components/auth/OTPVerification'; // Add this import
+import ResetPassword from './components/auth/ResetPassword';
+import OTPVerification from './components/auth/OTPVerification'; 
 import Feed from './pages/Feed';
 import Messages from './pages/Messages';
 import ChatBox from './pages/ChatBox';
