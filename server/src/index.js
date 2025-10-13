@@ -30,6 +30,7 @@ const server = http.createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'https://sanjal-chakra.vercel.app',
+  'https://sanjal-chakra.vercel.app/'
 ];
 
 // CORS configuration
