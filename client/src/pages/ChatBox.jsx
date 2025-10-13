@@ -4,7 +4,7 @@ import useAuth from '../hooks/useAuth';
 import { useParams } from 'react-router-dom';
 import API from '../api/api';
 import { socket } from '../utils/socket';
-import useWebRTC from '../hooks/useWebRtc';
+import useWebRTC from '../hooks/useWebRTC';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Message List Component
