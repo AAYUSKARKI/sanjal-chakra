@@ -2,7 +2,6 @@ import Message from "../models/message.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { emitToUser } from "../sockets/socket.io.js";
 import { createNotification } from "./notification.controller.js";
-import fs from "fs/promises";
 
 export const sendMessage = async (req, res) => {
     const { receiver } = req.params;
@@ -27,9 +26,6 @@ export const sendMessage = async (req, res) => {
                 resource_type: "image", // Automatically detect type
             });
             imageUrl = result.secure_url;
-
-            // Remove local file after upload
-            await fs.unlink(image.path);
         }
 
         // Save message in DB

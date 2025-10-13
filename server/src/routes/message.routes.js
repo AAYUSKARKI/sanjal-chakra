@@ -1,13 +1,7 @@
 import express from "express";
-import multer from "multer";
+import upload from "../middleware/upload.middleware.js";
 import { sendMessage,getMessages,fetchLatestMessage } from "../controllers/message.controller.js";
 import  protectRoute  from "../middleware/auth.middleware.js";
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/image/'),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname),
-});
-
-const upload = multer({ storage });
 
 const router = express.Router();
 
