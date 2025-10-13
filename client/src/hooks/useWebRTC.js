@@ -38,15 +38,24 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     pc.ontrack = (event) => {
-      console.log('Received remote stream:', event.streams);
-      const [remote] = event.streams;
-      if (remote.active) {
-        pendingRemoteStream.current = remote;
-        setRemoteStream(remote);
-      } else {
-        console.warn('Received inactive remote stream:', remote);
-      }
-    };
+  console.log('Received remote stream:', event.streams);
+  const [remote] = event.streams;
+  const videoTracks = remote.getVideoTracks();
+  console.log('Remote video tracks:', videoTracks);
+  if (remote.active && videoTracks.length > 0 && videoTracks[0].enabled) {
+    setRemoteStream(remote);
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remote;
+      console.log('Assigned remote stream to remoteVideoRef:', remoteVideoRef.current.srcObject);
+    } else {
+      console.warn('remoteVideoRef.current is not available, stream queued');
+      pendingRemoteStream.current = remote;
+    }
+  } else {
+    console.warn('No active video tracks in remote stream:', videoTracks);
+    setCallStatus(videoTracks.length === 0 ? 'No video track received.' : 'Remote camera is disabled.');
+  }
+};
 
     pc.oniceconnectionstatechange = () => {
       console.log('ICE connection state:', pc.iceConnectionState);
