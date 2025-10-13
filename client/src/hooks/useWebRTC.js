@@ -5,8 +5,7 @@ const useWebRTC = (userId, remoteUserId) => {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
-  const candidatesRef = useRef([]);
-  const pendingRemoteStream = useRef(null);
+  const candidatesQueueRef = useRef([]); // Renamed for clarity
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
@@ -16,9 +15,11 @@ const useWebRTC = (userId, remoteUserId) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
   const [isCallEnded, setIsCallEnded] = useState(false);
-  const [callInitiator, setCallInitiator] = useState(false); // Track if this user initiated the call
+  const [callInitiator, setCallInitiator] = useState(false);
 
+  // Helper to create peer connection with improved logging
   const createPeerConnection = () => {
+    console.log('Creating new RTCPeerConnection');
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -29,316 +30,364 @@ const useWebRTC = (userId, remoteUserId) => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && !isCallEnded) {
-        console.log('Sending ICE candidate:', event.candidate);
-        socket.emit('peer-negotiation-needed', {
+        console.log('Generated ICE candidate:', event.candidate);
+        socket.emit('ice-candidate', { // Renamed event for clarity
           to: remoteUserId,
           candidate: event.candidate.toJSON(),
         });
+      } else if (!event.candidate) {
+        console.log('ICE candidate gathering complete');
       }
     };
 
     pc.ontrack = (event) => {
-      console.log('Received remote stream:', event.streams);
-      const [remote] = event.streams;
-      if (remote.active) {
-        pendingRemoteStream.current = remote;
-        setRemoteStream(remote);
+      console.log('Received remote track:', event.track);
+      const [stream] = event.streams;
+      if (stream && stream.active) {
+        console.log('Setting active remote stream');
+        setRemoteStream(stream);
       } else {
-        console.warn('Received inactive remote stream:', remote);
+        console.warn('Received inactive remote stream');
       }
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('ICE connection state:', pc.iceConnectionState);
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-        setCallStatus('Call disconnected due to network issues. Attempting to reconnect...');
+      const state = pc.iceConnectionState;
+      console.log('ICE connection state changed:', state);
+      if (state === 'failed' || state === 'disconnected') {
+        setCallStatus('Connection issues detected. Attempting reconnect...');
         setTimeout(() => {
-          if (pc.iceConnectionState !== 'connected') {
-            endVideoCall();
+          if (pc.iceConnectionState !== 'connected' && pc.iceConnectionState !== 'completed') {
+            console.log('Reconnect timeout: Ending call');
+            endCall();
           }
         }, 5000);
-      } else if (pc.iceConnectionState === 'connected') {
+      } else if (state === 'connected' || state === 'completed') {
         setCallStatus('Connected');
       }
     };
 
     pc.onsignalingstatechange = () => {
-      console.log('Signaling state:', pc.signalingState);
-      if (pc.signalingState === 'closed') {
-        endVideoCall();
+      const state = pc.signalingState;
+      console.log('Signaling state changed:', state);
+      if (state === 'closed') {
+        console.log('Signaling closed: Ending call');
+        endCall();
       }
     };
 
     return pc;
   };
 
+  // Process queued ICE candidates with better error handling
   const processQueuedCandidates = async () => {
     const pc = peerConnectionRef.current;
-    if (pc) {
-      while (candidatesRef.current.length) {
-        const candidate = candidatesRef.current.shift();
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-          console.log('Added queued ICE candidate:', candidate);
-        } catch (error) {
-          console.error('Error adding queued ICE candidate:', error);
-        }
+    if (!pc) {
+      console.warn('No peer connection to add candidates');
+      return;
+    }
+    while (candidatesQueueRef.current.length > 0) {
+      const candidate = candidatesQueueRef.current.shift();
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        console.log('Added queued ICE candidate:', candidate);
+      } catch (error) {
+        console.error('Failed to add queued ICE candidate:', error, candidate);
       }
     }
   };
 
-  const startVideoCall = async () => {
+  // Start video call with improved error handling and logging
+  const startCall = async () => {
+    if (isVideoCallActive || incomingCall) {
+      console.warn('Call already active or incoming; skipping start');
+      return;
+    }
     try {
-      setCallStatus('Calling...');
+      setCallStatus('Initiating call...');
       setIsCallEnded(false);
-      setCallInitiator(true); // Mark this user as the initiator
-      candidatesRef.current = [];
+      setCallInitiator(true);
+      candidatesQueueRef.current = [];
+
+      console.log('Requesting user media');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: true,
       });
+      console.log('Local stream acquired:', stream);
       setLocalStream(stream);
-      console.log('Local stream obtained:', stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        console.log('Assigned local stream to localVideoRef:', localVideoRef.current.srcObject);
-      } else {
-        console.warn('localVideoRef.current is not available');
-      }
 
       setIsVideoCallActive(true);
       peerConnectionRef.current = createPeerConnection();
+
       stream.getTracks().forEach((track) => {
+        console.log('Adding local track:', track.kind);
         peerConnectionRef.current.addTrack(track, stream);
       });
 
+      console.log('Creating offer');
       const offer = await peerConnectionRef.current.createOffer();
       await peerConnectionRef.current.setLocalDescription(offer);
-      socket.emit('user-call', { to: remoteUserId, offer });
-      setCallStatus('Connecting...');
+      console.log('Local description set:', offer);
+
+      socket.emit('call-offer', { to: remoteUserId, offer }); // Renamed event
+      setCallStatus('Waiting for answer...');
     } catch (error) {
-      console.error('Error starting video call:', error);
-      setCallStatus('Failed to start call. Check camera/microphone permissions and try again.');
-      endVideoCall();
+      console.error('Error starting call:', error);
+      setCallStatus('Failed to start call. Check permissions.');
+      endCall();
     }
   };
 
-  const acceptCall = async ({ from, offer }) => {
+  // Accept incoming call
+  const acceptCall = async (callData) => {
+    if (!callData || !callData.offer) {
+      console.warn('Invalid incoming call data');
+      return;
+    }
     try {
+      const { from, offer } = callData;
       setCallStatus('Accepting call...');
       setIsCallEnded(false);
-      setCallInitiator(false); // Mark this user as not the initiator
-      candidatesRef.current = [];
+      setCallInitiator(false);
+      candidatesQueueRef.current = [];
+
+      console.log('Requesting user media for answer');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: true,
       });
+      console.log('Local stream acquired:', stream);
       setLocalStream(stream);
-      console.log('Local stream obtained:', stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        console.log('Assigned local stream to localVideoRef:', localVideoRef.current.srcObject);
-      } else {
-        console.warn('localVideoRef.current is not available');
-      }
 
       setIsVideoCallActive(true);
       peerConnectionRef.current = createPeerConnection();
+
       stream.getTracks().forEach((track) => {
+        console.log('Adding local track:', track.kind);
         peerConnectionRef.current.addTrack(track, stream);
       });
 
+      console.log('Setting remote description:', offer);
       await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
       await processQueuedCandidates();
+
+      console.log('Creating answer');
       const answer = await peerConnectionRef.current.createAnswer();
       await peerConnectionRef.current.setLocalDescription(answer);
-      socket.emit('call-accepted', { to: from, answer });
+      console.log('Local description set:', answer);
 
+      socket.emit('call-answer', { to: from, answer }); // Renamed event
       setIncomingCall(null);
       setCallStatus('Connected');
     } catch (error) {
       console.error('Error accepting call:', error);
-      setCallStatus('Failed to accept call. Check camera/microphone permissions.');
+      setCallStatus('Failed to accept call.');
       setIncomingCall(null);
-      endVideoCall();
+      endCall();
     }
   };
 
+  // Reject call
   const rejectCall = () => {
     if (incomingCall) {
+      console.log('Rejecting incoming call from:', incomingCall.from);
       socket.emit('call-rejected', { to: incomingCall.from });
       setIncomingCall(null);
       setCallStatus('Call rejected.');
       setIsCallEnded(true);
-      endVideoCall();
-      console.log('rejectCall: Initiated call rejection and cleanup');
+      endCall();
     }
   };
 
-  const endVideoCall = () => {
+  // End call with robust cleanup
+  const endCall = () => {
     if (isCallEnded) {
-      console.log('endVideoCall: Call already ended, skipping cleanup');
+      console.log('Call already ended; skipping');
       return;
     }
+    console.log('Ending call');
     setIsCallEnded(true);
+    setCallStatus('Call ended.');
+
     if (localStream) {
       localStream.getTracks().forEach((track) => {
+        console.log('Stopping local track:', track.kind);
         track.stop();
-        console.log('Stopped track:', track.kind);
       });
     }
+
     if (peerConnectionRef.current) {
+      console.log('Closing peer connection');
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = null;
-    }
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = null;
-    }
+
     setLocalStream(null);
     setRemoteStream(null);
     setIsVideoCallActive(false);
     setIncomingCall(null);
-    setCallStatus('');
     setCallInitiator(false);
-    candidatesRef.current = [];
-    // Only emit end-call if this user initiated the call or is in an active call
-    if (callInitiator || isVideoCallActive) {
+    candidatesQueueRef.current = [];
+
+    // Emit end-call only if active or initiator
+    if (isVideoCallActive || callInitiator) {
+      console.log('Emitting end-call to:', remoteUserId);
       socket.emit('end-call', { to: remoteUserId });
-      console.log('endVideoCall: Emitted end-call to', remoteUserId);
     }
-    console.log('endVideoCall: Camera and stream cleanup completed');
   };
 
+  // Toggle mic
   const toggleMic = () => {
     if (localStream) {
       localStream.getAudioTracks().forEach((track) => {
         track.enabled = !track.enabled;
+        console.log('Mic toggled:', track.enabled ? 'On' : 'Off');
       });
       setIsMicOn((prev) => !prev);
+    } else {
+      console.warn('No local stream to toggle mic');
     }
   };
 
+  // Toggle camera
   const toggleCamera = () => {
     if (localStream) {
       localStream.getVideoTracks().forEach((track) => {
         track.enabled = !track.enabled;
+        console.log('Camera toggled:', track.enabled ? 'On' : 'Off');
       });
       setIsCameraOn((prev) => !prev);
+    } else {
+      console.warn('No local stream to toggle camera');
     }
   };
 
+  // Toggle full screen
   const toggleFullScreen = () => {
     const element = document.getElementById('video-call-container') || document.documentElement;
     if (!isFullScreen) {
-      element.requestFullscreen().catch((err) => console.error('Full-screen error:', err));
+      element.requestFullscreen().catch((err) => console.error('Fullscreen request failed:', err));
     } else {
-      document.exitFullscreen().catch((err) => console.error('Exit full-screen error:', err));
+      document.exitFullscreen().catch((err) => console.error('Exit fullscreen failed:', err));
     }
     setIsFullScreen((prev) => !prev);
+    console.log('Fullscreen toggled:', !isFullScreen);
   };
 
+  // Socket event listeners
   useEffect(() => {
-    if (userId) {
-      socket.on('incoming-call', ({ from, offer }) => {
-        if (!isVideoCallActive && !isCallEnded) {
-          setIncomingCall({ from, offer });
-          setCallStatus('Incoming call...');
-        } else {
-          socket.emit('call-rejected', { to: from });
-        }
-      });
+    if (!userId) return;
 
-      socket.on('call-accepted', async ({ answer }) => {
+    const handleIncomingCall = ({ from, offer }) => {
+      if (!isVideoCallActive && !isCallEnded) {
+        console.log('Received incoming call from:', from);
+        setIncomingCall({ from, offer });
+        setCallStatus('Incoming call...');
+      } else {
+        console.log('Auto-rejecting call: Already in call or ended');
+        socket.emit('call-rejected', { to: from });
+      }
+    };
+
+    const handleCallAnswer = async ({ answer }) => {
+      const pc = peerConnectionRef.current;
+      if (pc && pc.signalingState !== 'closed') {
         try {
-          const pc = peerConnectionRef.current;
-          if (pc && pc.signalingState !== 'closed') {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            await processQueuedCandidates();
-            setCallStatus('Connected');
-          } else {
-            console.warn('Cannot set remote description: Peer connection is closed or null');
-            setCallStatus('Call failed: Connection closed.');
-            endVideoCall();
-          }
+          console.log('Setting remote description (answer):', answer);
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          await processQueuedCandidates();
+          setCallStatus('Connected');
         } catch (error) {
-          console.error('Error handling call-accepted:', error);
-          setCallStatus('Failed to connect call.');
-          endVideoCall();
+          console.error('Error setting remote description:', error);
+          setCallStatus('Connection failed.');
+          endCall();
         }
-      });
+      } else {
+        console.warn('Peer connection invalid for answer');
+        endCall();
+      }
+    };
 
-      socket.on('call-rejected', () => {
-        setCallStatus('Call rejected by user.');
-        endVideoCall();
-      });
+    const handleCallRejected = () => {
+      console.log('Call rejected by remote user');
+      setCallStatus('Call rejected.');
+      endCall();
+    };
 
-      socket.on('peer-negotiation-needed', ({ candidate }) => {
-        console.log('Received ICE candidate:', candidate);
-        if (!candidate) return;
-        const pc = peerConnectionRef.current;
-        if (pc && pc.remoteDescription && pc.signalingState !== 'closed') {
-          pc.addIceCandidate(new RTCIceCandidate(candidate))
-            .then(() => console.log('Added ICE candidate successfully'))
-            .catch((error) => console.error('Error adding ICE candidate:', error));
-        } else {
-          candidatesRef.current.push(candidate);
-          console.log('Queued ICE candidate:', candidate);
-        }
-      });
+    const handleIceCandidate = ({ candidate }) => {
+      if (!candidate) return;
+      console.log('Received ICE candidate:', candidate);
+      const pc = peerConnectionRef.current;
+      if (pc && pc.remoteDescription && pc.signalingState !== 'closed') {
+        pc.addIceCandidate(new RTCIceCandidate(candidate))
+          .then(() => console.log('Added ICE candidate'))
+          .catch((error) => console.error('Failed to add ICE candidate:', error));
+      } else {
+        console.log('Queuing ICE candidate');
+        candidatesQueueRef.current.push(candidate);
+      }
+    };
 
-      socket.on('end-call', () => {
-        setCallStatus('Call ended by remote user.');
-        endVideoCall();
-      });
+    const handleEndCall = () => {
+      console.log('Received end-call from remote');
+      setCallStatus('Call ended by remote.');
+      endCall();
+    };
 
-      socket.on('user-offline', ({ userId: offlineUserId }) => {
-        if (offlineUserId === remoteUserId) {
-          setCallStatus('User is offline.');
-          endVideoCall();
-        }
-      });
+    const handleUserOffline = ({ userId: offlineUserId }) => {
+      if (offlineUserId === remoteUserId) {
+        console.log('Remote user offline');
+        setCallStatus('User offline.');
+        endCall();
+      }
+    };
 
-      return () => {
-        socket.off('incoming-call');
-        socket.off('call-accepted');
-        socket.off('call-rejected');
-        socket.off('peer-negotiation-needed');
-        socket.off('end-call');
-        socket.off('user-offline');
-      };
-    }
-  }, [userId, remoteUserId]);
+    socket.on('call-offer', handleIncomingCall); // Updated event name
+    socket.on('call-answer', handleCallAnswer); // Updated
+    socket.on('call-rejected', handleCallRejected);
+    socket.on('ice-candidate', handleIceCandidate); // Updated
+    socket.on('end-call', handleEndCall);
+    socket.on('user-offline', handleUserOffline);
 
+    return () => {
+      socket.off('call-offer', handleIncomingCall);
+      socket.off('call-answer', handleCallAnswer);
+      socket.off('call-rejected', handleCallRejected);
+      socket.off('ice-candidate', handleIceCandidate);
+      socket.off('end-call', handleEndCall);
+      socket.off('user-offline', handleUserOffline);
+    };
+  }, [userId, remoteUserId, isVideoCallActive, isCallEnded]);
+
+  // Assign streams to video refs reactively
   useEffect(() => {
-    if (localStream && localVideoRef.current) {
+    if (localVideoRef.current && localStream) {
+      console.log('Assigning local stream to video ref');
       localVideoRef.current.srcObject = localStream;
-      console.log('useEffect: Assigned localStream to localVideoRef:', localVideoRef.current.srcObject);
     }
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      console.log('useEffect: Assigned remoteStream to remoteVideoRef:', remoteVideoRef.current.srcObject);
-      pendingRemoteStream.current = null;
-    } else if (remoteStream) {
-      console.warn('useEffect: remoteVideoRef.current is not available, stream queued');
-    }
-  }, [localStream, remoteStream, localVideoRef, remoteVideoRef]);
+  }, [localStream]);
 
   useEffect(() => {
-    if (pendingRemoteStream.current && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = pendingRemoteStream.current;
-      console.log('useEffect: Assigned pendingRemoteStream to remoteVideoRef:', remoteVideoRef.current.srcObject);
-      pendingRemoteStream.current = null;
+    if (remoteVideoRef.current && remoteStream) {
+      console.log('Assigning remote stream to video ref');
+      remoteVideoRef.current.srcObject = remoteStream;
     }
-  }, [remoteVideoRef]);
+  }, [remoteStream]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      console.log('useWebRTC cleanup: Ending any active call');
+      endCall();
+    };
+  }, []);
 
   return {
     localVideoRef,
     remoteVideoRef,
-    startVideoCall,
-    endVideoCall,
+    startVideoCall: startCall,
+    endVideoCall: endCall,
     acceptCall,
     rejectCall,
     isVideoCallActive,
@@ -350,6 +399,8 @@ const useWebRTC = (userId, remoteUserId) => {
     isCameraOn,
     toggleFullScreen,
     isFullScreen,
+    localStream,
+    remoteStream,
   };
 };
 
