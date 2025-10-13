@@ -17,8 +17,8 @@ const useWebRTC = (userId, remoteUserId) => {
   const [isCallEnded, setIsCallEnded] = useState(false);
   const [callInitiator, setCallInitiator] = useState(false);
   const [currentCallId, setCurrentCallId] = useState(null);
-  const isCleaningUp = useRef(false); // Prevent redundant cleanup
-  const isMounted = useRef(true); // Track component mount state
+  const isCleaningUp = useRef(false);
+  const isMounted = useRef(true);
 
   const createPeerConnection = () => {
     console.log('Creating RTCPeerConnection for user:', userId);
@@ -31,11 +31,16 @@ const useWebRTC = (userId, remoteUserId) => {
     });
 
     pc.onicecandidate = (event) => {
-      if (!isMounted.current || isCallEnded || !currentCallId) {
-        console.warn('Skipping ICE candidate: component unmounted, call ended, or missing callId');
+      if (!currentCallId || isCallEnded) {
+        console.warn('Skipping ICE candidate: call ended or missing callId', { callId: currentCallId });
         return;
       }
       if (event.candidate) {
+        if (!isMounted.current) {
+          console.log('Buffering ICE candidate due to unmounted component for call:', currentCallId);
+          candidatesQueueRef.current.push(event.candidate.toJSON());
+          return;
+        }
         console.log('Sending ICE candidate for call:', currentCallId);
         socket.emit('peer-negotiation-needed', {
           to: remoteUserId,
@@ -65,7 +70,7 @@ const useWebRTC = (userId, remoteUserId) => {
     pc.oniceconnectionstatechange = () => {
       if (!isMounted.current) return;
       const state = pc.iceConnectionState;
-      console.log('ICE connection state:', state, 'for call:', currentCallId);
+      console.log('ICE connection state:', state, 'for call:', currentCallId || 'unknown');
       if (state === 'failed' || state === 'disconnected') {
         setCallStatus('Connection issues detected. Attempting reconnect...');
         setTimeout(() => {
@@ -82,9 +87,9 @@ const useWebRTC = (userId, remoteUserId) => {
     pc.onsignalingstatechange = () => {
       if (!isMounted.current) return;
       const state = pc.signalingState;
-      console.log('Signaling state:', state, 'for call:', currentCallId);
+      console.log('Signaling state:', state, 'for call:', currentCallId || 'unknown');
       if (state === 'closed' && !isCleaningUp.current) {
-        console.log('Signaling closed: Ending call:', currentCallId);
+        console.log('Signaling closed: Ending call:', currentCallId || 'unknown');
         endCall();
       }
     };
@@ -122,11 +127,11 @@ const useWebRTC = (userId, remoteUserId) => {
       return;
     }
     try {
+      const newCallId = crypto.randomUUID();
+      setCurrentCallId(newCallId);
       setCallStatus('Initiating call...');
       setIsCallEnded(false);
       setCallInitiator(true);
-      const newCallId = crypto.randomUUID();
-      setCurrentCallId(newCallId);
       candidatesQueueRef.current = [];
 
       console.log('Requesting user media for call:', newCallId);
@@ -160,7 +165,15 @@ const useWebRTC = (userId, remoteUserId) => {
       setCallStatus('Waiting for answer...');
     } catch (error) {
       console.error('Error starting call:', error, 'for user:', userId);
-      setCallStatus('Failed to start call. Check permissions.');
+      let errorMessage = 'Failed to start call.';
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Camera or microphone access denied. Please grant permissions.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No camera or microphone found.';
+      } else {
+        errorMessage = `Failed to start call: ${error.message}`;
+      }
+      setCallStatus(errorMessage);
       endCall();
     }
   };
@@ -172,10 +185,10 @@ const useWebRTC = (userId, remoteUserId) => {
     }
     try {
       const { from, offer, callId } = callData;
+      setCurrentCallId(callId);
       setCallStatus('Accepting call...');
       setIsCallEnded(false);
       setCallInitiator(false);
-      setCurrentCallId(callId);
       candidatesQueueRef.current = [];
 
       console.log('Requesting user media for call:', callId);
@@ -214,7 +227,15 @@ const useWebRTC = (userId, remoteUserId) => {
       setCallStatus('Connected');
     } catch (error) {
       console.error('Error accepting call:', error, 'for call:', callData.callId);
-      setCallStatus('Failed to accept call.');
+      let errorMessage = 'Failed to accept call.';
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Camera or microphone access denied. Please grant permissions.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No camera or microphone found.';
+      } else {
+        errorMessage = `Failed to accept call: ${error.message}`;
+      }
+      setCallStatus(errorMessage);
       setIncomingCall(null);
       endCall();
     }
@@ -253,19 +274,15 @@ const useWebRTC = (userId, remoteUserId) => {
       peerConnectionRef.current = null;
     }
 
+    socket.emit('end-call', { to: remoteUserId, callId: currentCallId });
+
     setLocalStream(null);
     setRemoteStream(null);
     setIsVideoCallActive(false);
     setIncomingCall(null);
     setCallInitiator(false);
-    candidatesQueueRef.current = [];
-
-    if (currentCallId && (isVideoCallActive || callInitiator)) {
-      console.log('Emitting end-call to:', remoteUserId, 'for call:', currentCallId);
-      socket.emit('end-call', { to: remoteUserId, callId: currentCallId });
-    }
-
     setCurrentCallId(null);
+    candidatesQueueRef.current = [];
     isCleaningUp.current = false;
   };
 
@@ -318,7 +335,7 @@ const useWebRTC = (userId, remoteUserId) => {
         if (callId) socket.emit('call-rejected', { to: from, callId });
         return;
       }
-      if (!isVideoCallActive && !isCallEnded) {
+      if (!isVideoCallActive && !isCallEnded && !currentCallId) {
         console.log('Received incoming call from:', from, 'callId:', callId);
         setIncomingCall({ from, offer, callId });
         setCallStatus('Incoming call...');
@@ -330,7 +347,7 @@ const useWebRTC = (userId, remoteUserId) => {
 
     const handleCallAccepted = async ({ answer, callId }) => {
       if (!isMounted.current || callId !== currentCallId || !currentCallId) {
-        console.warn('Ignoring call-accepted: unmounted or mismatched callId:', callId);
+        console.warn('Ignoring call-accepted: unmounted or mismatched callId:', callId, 'expected:', currentCallId);
         return;
       }
       const pc = peerConnectionRef.current;
@@ -353,7 +370,7 @@ const useWebRTC = (userId, remoteUserId) => {
 
     const handleCallRejected = ({ callId }) => {
       if (!isMounted.current || callId !== currentCallId || !currentCallId) {
-        console.warn('Ignoring call-rejected: unmounted or mismatched callId:', callId);
+        console.warn('Ignoring call-rejected: unmounted or mismatched callId:', callId, 'expected:', currentCallId);
         return;
       }
       console.log('Call rejected by remote user:', callId);
@@ -363,7 +380,7 @@ const useWebRTC = (userId, remoteUserId) => {
 
     const handlePeerNegotiation = ({ candidate, callId }) => {
       if (!isMounted.current || !candidate || callId !== currentCallId || !currentCallId || isCallEnded) {
-        console.warn('Ignoring peer-negotiation: unmounted, invalid candidate, or mismatched callId:', callId);
+        console.warn('Ignoring peer-negotiation: unmounted, invalid candidate, or mismatched callId:', callId, 'expected:', currentCallId);
         return;
       }
       console.log('Received ICE candidate for call:', callId);
@@ -380,7 +397,7 @@ const useWebRTC = (userId, remoteUserId) => {
 
     const handleEndCall = ({ callId }) => {
       if (!isMounted.current || callId !== currentCallId || !currentCallId) {
-        console.warn('Ignoring end-call: unmounted or mismatched callId:', callId);
+        console.warn('Ignoring end-call: unmounted or mismatched callId:', callId, 'expected:', currentCallId);
         return;
       }
       console.log('Received end-call from remote for call:', callId);
@@ -402,6 +419,12 @@ const useWebRTC = (userId, remoteUserId) => {
     socket.on('end-call', handleEndCall);
     socket.on('user-offline', handleUserOffline);
 
+    // Process any buffered ICE candidates on mount
+    if (candidatesQueueRef.current.length > 0 && peerConnectionRef.current && isVideoCallActive) {
+      console.log('Processing buffered ICE candidates on mount for call:', currentCallId);
+      processQueuedCandidates();
+    }
+
     return () => {
       isMounted.current = false;
       socket.off('user-call', handleIncomingCall);
@@ -411,7 +434,7 @@ const useWebRTC = (userId, remoteUserId) => {
       socket.off('end-call', handleEndCall);
       socket.off('user-offline', handleUserOffline);
       console.log('Cleaned up socket listeners for user:', userId);
-      if (!isCleaningUp.current && isVideoCallActive) {
+      if (isVideoCallActive && !isCleaningUp.current) {
         console.log('useWebRTC cleanup: Ending call:', currentCallId);
         endCall();
       }
