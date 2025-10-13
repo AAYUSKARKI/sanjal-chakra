@@ -124,7 +124,7 @@ export const getAllPost = async (req, res) => {
 export const getMyPosts = async (req, res) => {
     try {
         const currentUserId = req.user._id;
-        const posts = await Post.find({ userId: currentUserId }).sort({ createdAt: -1 });
+        const posts = await Post.find({ userId: currentUserId }).populate("userId", "fullname profilePics").sort({ createdAt: -1 });
         res.status(200).json({ posts });
     } catch (err) {
         console.error("Get my posts error:", err);
