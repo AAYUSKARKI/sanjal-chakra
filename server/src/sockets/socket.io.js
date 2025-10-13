@@ -1,28 +1,27 @@
 import { Server } from 'socket.io';
-import { v4 as uuidv4 } from 'uuid'; // Add uuid for unique call IDs
+import { v4 as uuidv4 } from 'uuid';
 
 let io;
 const onlineUsers = new Map();
-const activeCalls = new Set(); // Track active calls to prevent re-emission
+const activeCalls = new Map(); // Changed to Map to store callId -> { from, to }
 
 const allowedOrigins = [
   'http://localhost:5173',
   'https://sanjal-chakra.vercel.app',
   'https://sanjal-chakra.vercel.app/'
 ];
+
 export const setUpSocket = (server) => {
   io = new Server(server, {
     cors: {
       origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., mobile apps or curl)
-    if (!origin) return callback(null, true);
-    // Check if the request origin is in the allowedOrigins list
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
     },
   });
@@ -30,20 +29,18 @@ export const setUpSocket = (server) => {
   io.on('connection', (socket) => {
     console.log(`User is connected: ${socket.id}`);
 
-    // Register user with socket
     socket.on('register', (userId) => {
       socket.userId = userId;
       onlineUsers.set(userId, socket.id);
       console.log(`User ${userId} registered with socket ${socket.id}`);
     });
 
-    // WebRTC signaling events
     socket.on('user-call', ({ to, offer }) => {
       const receiverSocketId = onlineUsers.get(to);
-      const callId = uuidv4(); // Generate unique call ID
+      const callId = uuidv4();
       if (receiverSocketId) {
         console.log(`Emitting incoming-call to ${to} from ${socket.userId} with callId: ${callId}`);
-        activeCalls.add(callId);
+        activeCalls.set(callId, { from: socket.userId, to });
         io.to(receiverSocketId).emit('incoming-call', { from: socket.userId, offer, callId });
       } else {
         console.log(`User ${to} is offline`);
@@ -52,6 +49,10 @@ export const setUpSocket = (server) => {
     });
 
     socket.on('call-accepted', ({ to, answer, callId }) => {
+      if (!activeCalls.has(callId)) {
+        console.log(`Ignoring call-accepted for inactive callId: ${callId}`);
+        return;
+      }
       const receiverSocketId = onlineUsers.get(to);
       if (receiverSocketId) {
         console.log(`Emitting call-accepted to ${to} with callId: ${callId}`);
@@ -60,6 +61,10 @@ export const setUpSocket = (server) => {
     });
 
     socket.on('call-rejected', ({ to, callId }) => {
+      if (!activeCalls.has(callId)) {
+        console.log(`Ignoring call-rejected for inactive callId: ${callId}`);
+        return;
+      }
       const receiverSocketId = onlineUsers.get(to);
       if (receiverSocketId) {
         console.log(`Emitting call-rejected to ${to} with callId: ${callId}`);
@@ -69,6 +74,10 @@ export const setUpSocket = (server) => {
     });
 
     socket.on('peer-negotiation-needed', ({ to, candidate, callId }) => {
+      if (!activeCalls.has(callId)) {
+        console.log(`Ignoring peer-negotiation-needed for inactive callId: ${callId}`);
+        return;
+      }
       const receiverSocketId = onlineUsers.get(to);
       if (receiverSocketId) {
         console.log(`Emitting peer-negotiation-needed to ${to} with candidate and callId: ${callId}`);
@@ -78,7 +87,7 @@ export const setUpSocket = (server) => {
 
     socket.on('end-call', ({ to, callId }) => {
       if (!activeCalls.has(callId)) {
-        console.log(`end-call ignored for callId: ${callId}, already processed`);
+        console.log(`Ignoring end-call for inactive callId: ${callId}`);
         return;
       }
       const receiverSocketId = onlineUsers.get(to);
@@ -89,7 +98,6 @@ export const setUpSocket = (server) => {
       }
     });
 
-    // Message events
     socket.on('send-message', (data) => {
       const { receiverId, to, message, senderName } = data;
       const receiverSocketId = onlineUsers.get(to || receiverId);
@@ -115,7 +123,6 @@ export const setUpSocket = (server) => {
       io.to(groupId).emit('receive-group-message', data);
     });
 
-    // Handle disconnection
     socket.on('disconnect', () => {
       console.log(`Disconnect: ${socket.id}`);
       for (let [userId, id] of onlineUsers.entries()) {
@@ -123,6 +130,18 @@ export const setUpSocket = (server) => {
           onlineUsers.delete(userId);
           console.log(`Emitting user-offline for ${userId}`);
           io.emit('user-offline', { userId });
+          // End any active calls for this user
+          for (let [callId, { from, to }] of activeCalls.entries()) {
+            if (from === userId || to === userId) {
+              console.log(`Ending call ${callId} due to user ${userId} disconnect`);
+              activeCalls.delete(callId);
+              const otherUserId = from === userId ? to : from;
+              const otherSocketId = onlineUsers.get(otherUserId);
+              if (otherSocketId) {
+                io.to(otherSocketId).emit('end-call', { callId });
+              }
+            }
+          }
           break;
         }
       }

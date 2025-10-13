@@ -16,9 +16,9 @@ const useWebRTC = (userId, remoteUserId) => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [isCallEnded, setIsCallEnded] = useState(false);
   const [callInitiator, setCallInitiator] = useState(false);
-  const [currentCallId, setCurrentCallId] = useState(null); // Track call ID
+  const [currentCallId, setCurrentCallId] = useState(null);
+  const isCleaningUp = useRef(false); // New: Prevent redundant cleanup
 
-  // Create peer connection
   const createPeerConnection = () => {
     console.log('Creating RTCPeerConnection for user:', userId);
     const pc = new RTCPeerConnection({
@@ -30,7 +30,7 @@ const useWebRTC = (userId, remoteUserId) => {
     });
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && !isCallEnded) {
+      if (event.candidate && !isCallEnded && currentCallId) {
         console.log('Sending ICE candidate for call:', currentCallId);
         socket.emit('peer-negotiation-needed', {
           to: remoteUserId,
@@ -39,17 +39,19 @@ const useWebRTC = (userId, remoteUserId) => {
         });
       } else if (!event.candidate) {
         console.log('ICE candidate gathering complete for call:', currentCallId);
+      } else {
+        console.warn('Skipping ICE candidate due to call ended or missing callId');
       }
     };
 
     pc.ontrack = (event) => {
       console.log('Received remote track:', event.track);
       const [stream] = event.streams;
-      if (stream && stream.active) {
+      if (stream && stream.active && currentCallId) {
         console.log('Setting active remote stream for call:', currentCallId);
         setRemoteStream(stream);
       } else {
-        console.warn('Received inactive remote stream for call:', currentCallId);
+        console.warn('Received inactive remote stream or missing callId:', currentCallId);
       }
     };
 
@@ -72,7 +74,7 @@ const useWebRTC = (userId, remoteUserId) => {
     pc.onsignalingstatechange = () => {
       const state = pc.signalingState;
       console.log('Signaling state:', state, 'for call:', currentCallId);
-      if (state === 'closed') {
+      if (state === 'closed' && !isCleaningUp.current) {
         console.log('Signaling closed: Ending call:', currentCallId);
         endCall();
       }
@@ -81,11 +83,11 @@ const useWebRTC = (userId, remoteUserId) => {
     return pc;
   };
 
-  // Process queued ICE candidates
   const processQueuedCandidates = async () => {
     const pc = peerConnectionRef.current;
-    if (!pc) {
-      console.warn('No peer connection to process candidates for call:', currentCallId);
+    if (!pc || !currentCallId || isCallEnded) {
+      console.warn('No peer connection or call ended; skipping candidate processing for call:', currentCallId);
+      candidatesQueueRef.current = []; // Clear queue
       return;
     }
     while (candidatesQueueRef.current.length > 0) {
@@ -99,17 +101,16 @@ const useWebRTC = (userId, remoteUserId) => {
     }
   };
 
-  // Start video call
   const startCall = async () => {
-    if (isVideoCallActive || incomingCall) {
-      console.warn('Call already active or incoming; skipping start for user:', userId);
+    if (isVideoCallActive || incomingCall || !userId || !remoteUserId) {
+      console.warn('Cannot start call: active call, incoming call, or missing IDs', { isVideoCallActive, incomingCall, userId, remoteUserId });
       return;
     }
     try {
       setCallStatus('Initiating call...');
       setIsCallEnded(false);
       setCallInitiator(true);
-      const newCallId = crypto.randomUUID(); // Generate unique call ID
+      const newCallId = crypto.randomUUID();
       setCurrentCallId(newCallId);
       candidatesQueueRef.current = [];
 
@@ -143,9 +144,8 @@ const useWebRTC = (userId, remoteUserId) => {
     }
   };
 
-  // Accept incoming call
   const acceptCall = async (callData) => {
-    if (!callData || !callData.offer || !callData.callId) {
+    if (!callData || !callData.offer || !callData.callId || !callData.from) {
       console.warn('Invalid incoming call data:', callData);
       return;
     }
@@ -193,24 +193,12 @@ const useWebRTC = (userId, remoteUserId) => {
     }
   };
 
-  // Reject call
-  const rejectCall = () => {
-    if (incomingCall) {
-      console.log('Rejecting call:', incomingCall.callId, 'from:', incomingCall.from);
-      socket.emit('call-rejected', { to: incomingCall.from, callId: incomingCall.callId });
-      setIncomingCall(null);
-      setCallStatus('Call rejected.');
-      setIsCallEnded(true);
-      endCall();
-    }
-  };
-
-  // End call
   const endCall = () => {
-    if (isCallEnded) {
-      console.log('Call already ended:', currentCallId);
+    if (isCallEnded || isCleaningUp.current) {
+      console.log('Call already ended or cleaning up:', currentCallId);
       return;
     }
+    isCleaningUp.current = true;
     console.log('Ending call:', currentCallId);
     setIsCallEnded(true);
     setCallStatus('Call ended.');
@@ -233,16 +221,18 @@ const useWebRTC = (userId, remoteUserId) => {
     setIsVideoCallActive(false);
     setIncomingCall(null);
     setCallInitiator(false);
-    setCurrentCallId(null);
     candidatesQueueRef.current = [];
 
-    if (isVideoCallActive || callInitiator) {
+    if (currentCallId && (isVideoCallActive || callInitiator)) {
       console.log('Emitting end-call to:', remoteUserId, 'for call:', currentCallId);
       socket.emit('end-call', { to: remoteUserId, callId: currentCallId });
     }
+
+    setCurrentCallId(null);
+    isCleaningUp.current = false;
   };
 
-  // Toggle microphone
+  // Toggle methods remain unchanged
   const toggleMic = () => {
     if (localStream) {
       localStream.getAudioTracks().forEach((track) => {
@@ -255,7 +245,6 @@ const useWebRTC = (userId, remoteUserId) => {
     }
   };
 
-  // Toggle camera
   const toggleCamera = () => {
     if (localStream) {
       localStream.getVideoTracks().forEach((track) => {
@@ -268,7 +257,6 @@ const useWebRTC = (userId, remoteUserId) => {
     }
   };
 
-  // Toggle full screen
   const toggleFullScreen = () => {
     const element = document.getElementById('video-call-container') || document.documentElement;
     if (!isFullScreen) {
@@ -288,7 +276,7 @@ const useWebRTC = (userId, remoteUserId) => {
     }
 
     const handleIncomingCall = ({ from, offer, callId }) => {
-      if (!isVideoCallActive && !isCallEnded) {
+      if (!isVideoCallActive && !isCallEnded && callId) {
         console.log('Received incoming call from:', from, 'callId:', callId);
         setIncomingCall({ from, offer, callId });
         setCallStatus('Incoming call...');
@@ -299,8 +287,12 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     const handleCallAccepted = async ({ answer, callId }) => {
+      if (callId !== currentCallId || !currentCallId) {
+        console.warn('Ignoring call-accepted for mismatched or null callId:', callId);
+        return;
+      }
       const pc = peerConnectionRef.current;
-      if (pc && pc.signalingState !== 'closed' && callId === currentCallId) {
+      if (pc && pc.signalingState !== 'closed') {
         try {
           console.log('Setting remote description (answer) for call:', callId);
           await pc.setRemoteDescription(new RTCSessionDescription(answer));
@@ -312,13 +304,13 @@ const useWebRTC = (userId, remoteUserId) => {
           endCall();
         }
       } else {
-        console.warn('Invalid peer connection or callId mismatch for answer:', callId);
+        console.warn('Invalid peer connection for call:', callId);
         endCall();
       }
     };
 
     const handleCallRejected = ({ callId }) => {
-      if (callId === currentCallId) {
+      if (callId === currentCallId && currentCallId) {
         console.log('Call rejected by remote user:', callId);
         setCallStatus('Call rejected.');
         endCall();
@@ -326,7 +318,7 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     const handlePeerNegotiation = ({ candidate, callId }) => {
-      if (!candidate || callId !== currentCallId) {
+      if (!candidate || callId !== currentCallId || !currentCallId || isCallEnded) {
         console.log('Ignoring invalid or mismatched candidate for call:', callId);
         return;
       }
@@ -343,7 +335,7 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     const handleEndCall = ({ callId }) => {
-      if (callId === currentCallId) {
+      if (callId === currentCallId && currentCallId) {
         console.log('Received end-call from remote for call:', callId);
         setCallStatus('Call ended by remote.');
         endCall();
@@ -351,7 +343,7 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     const handleUserOffline = ({ userId: offlineUserId }) => {
-      if (offlineUserId === remoteUserId) {
+      if (offlineUserId === remoteUserId && currentCallId) {
         console.log('Remote user offline:', offlineUserId);
         setCallStatus('User offline.');
         endCall();
@@ -376,7 +368,7 @@ const useWebRTC = (userId, remoteUserId) => {
     };
   }, [userId, remoteUserId, isVideoCallActive, isCallEnded, currentCallId]);
 
-  // Assign streams to video refs
+  // Stream assignments remain unchanged
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       console.log('Assigning local stream to video ref for call:', currentCallId);
@@ -394,8 +386,10 @@ const useWebRTC = (userId, remoteUserId) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log('useWebRTC cleanup: Ending call:', currentCallId);
-      endCall();
+      if (!isCleaningUp.current) {
+        console.log('useWebRTC cleanup: Ending call:', currentCallId);
+        endCall();
+      }
     };
   }, [currentCallId]);
 
