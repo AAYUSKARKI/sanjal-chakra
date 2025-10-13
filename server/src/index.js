@@ -27,10 +27,25 @@ const app = express();
 const server = http.createServer(app);
 
 // CORS middleware configuration 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://sanjal-chakra.vercel.app',
+];
+
+// CORS configuration
 app.use(cors({
-  origin: "http://localhost:5173", 
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., mobile apps or curl)
+    if (!origin) return callback(null, true);
+    // Check if the request origin is in the allowedOrigins list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
 }));
 
 app.use(express.json());
