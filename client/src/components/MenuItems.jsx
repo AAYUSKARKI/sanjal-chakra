@@ -1,20 +1,29 @@
-import React from 'react'
-import { menuItemsData } from '../assets/assets'
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom';
+import { menuItemsData } from '../assets/assets';
 
-const MenuItems = ({setSidebarOpen}) => {
+const MenuItems = ({ setSidebarOpen }) => {
   return (
-    <div className='px-6 text-gray-600 space-y-1 font-medium'>
-        {
-          menuItemsData.map(({to, label, Icon})=>(
-            <NavLink key={to} to={to} end={to === '/'} onClick={()=> setSidebarOpen(false)} className={({isActive})=> `px-3.5 py-2 flex items-center gap-3rounded-xl ${isActive ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'}`}>
-                  <Icon className="w-5 h-5"/>
-                  {label}
-            </NavLink>
-          ))
-        }   
-    </div>
-  )
-}
+    <nav className="px-4 py-3 text-gray-600 space-y-1 font-medium">
+      {menuItemsData.map(({ to, label, Icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === '/'}
+          onClick={() => setSidebarOpen(false)}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-200 ${
+              isActive
+                ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                : 'hover:bg-gray-50 hover:text-indigo-600'
+            }`
+          }
+        >
+          <Icon className="w-5 h-5" />
+          <span>{label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+};
 
-export default MenuItems
+export default MenuItems;

@@ -7,3 +7,12 @@
 .no-scrollbar::-webkit-scrollbar{
   display: none;
 }
+
+/* Add this if you use Tailwind plugin for scrollbars */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.4);
+  border-radius: 8px;
+}
