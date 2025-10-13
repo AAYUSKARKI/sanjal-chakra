@@ -193,6 +193,14 @@ const useWebRTC = (userId, remoteUserId) => {
     }
   };
 
+  const rejectCall = (callData) => {
+    if (!callData || !callData.callId || !callData.from) {
+      console.warn('Invalid incoming call data for rejection:', callData);
+      return;
+    }
+    socket.emit('call-rejected', { to: callData.from, callId: callData.callId });
+  };
+
   const endCall = () => {
     if (isCallEnded || isCleaningUp.current) {
       console.log('Call already ended or cleaning up:', currentCallId);
