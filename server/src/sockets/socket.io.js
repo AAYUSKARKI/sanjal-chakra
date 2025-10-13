@@ -5,10 +5,24 @@ let io;
 const onlineUsers = new Map();
 const activeCalls = new Set(); // Track active calls to prevent re-emission
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://sanjal-chakra.vercel.app',
+  'https://sanjal-chakra.vercel.app/'
+];
 export const setUpSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: "http://localhost:5173",
+      origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., mobile apps or curl)
+    if (!origin) return callback(null, true);
+    // Check if the request origin is in the allowedOrigins list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
       credentials: true,
     },
   });
