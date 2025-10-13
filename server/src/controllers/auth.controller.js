@@ -30,9 +30,6 @@ export const signup = async (req, res) => {
             verifyOtp,
             verifyOtpExpireAT
         });
-        console.log(newUser)
-        //check if the user is created, if yes:genrate a jwt and save user in the database
-        if (newUser) {
             generateToken(newUser._id, res);
             await newUser.save();
             await sendOtp(email, verifyOtp);
@@ -44,15 +41,6 @@ export const signup = async (req, res) => {
                 password: newUser.password,
                 profilePics: newUser.profilePics
             })
-        }
-        else {
-            return res.status(400).json({ message: "Invalid Credentials!!" })
-
-        }
-
-
-
-
     }
     catch (error) {
         console.log("SignUp Error:", error.message);
