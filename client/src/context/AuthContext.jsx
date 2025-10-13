@@ -216,6 +216,7 @@ export const AuthProvider = ({ children }) => {
       data = await  API.post("auth/login",{email, password});
       console.log(data.data)
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      localStorage.setItem("token",data.data.token)
       Cookies.set('token', data.data.token);
 
       const mockTokens = {

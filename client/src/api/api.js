@@ -5,7 +5,21 @@ export const API = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, 
 });
+
+
+API.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 
 // api for login
 export const login = async (email, password) => {
@@ -69,9 +83,8 @@ export const createStory = async (text, image) => {
       },
     }).then((response) => {
       console.log(response.data);
+      return response.data;
     });
-
-    return response.data;
   } catch (error) {
     console.error("Error creating story:", error);
     throw error;
