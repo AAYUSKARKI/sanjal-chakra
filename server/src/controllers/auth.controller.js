@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs"
 import User from "../models/user.model.js"
 import { generateToken } from "../utils/generatetokens.js"
-import sendOtp from "../lib/nodemailer.js"
+import sendOtp, { sendResetPasswordEmail } from "../lib/nodemailer.js"
 
 export const signup = async (req, res) => {
     const { fullname, password, email } = req.body
@@ -157,3 +157,54 @@ export const logout = async (req, res) => {
 
     }
 }
+
+export const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    try {
+        if (!email) return res.status(400).json({ message: "Email is required" })
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(400).json({ message: "User not found!!" })
+        }
+
+        // generate otp and its expire time
+        const reSetOtp = Math.floor(100000 + Math.random() * 900000);
+        const reSetOtpExpireAT = Date.now() + 10 * 60 * 1000;
+
+        user.resetPasswordToken = reSetOtp;
+        user.resetPasswordExpire = reSetOtpExpireAT;
+        await user.save();
+        await sendResetPasswordEmail(email, reSetOtp);
+        res.status(200).json({ message: "OTP sent to your email", data:{email,reSetOtp} });
+    } catch (error) {
+        console.log("LogIn Error:", error);
+        res.status(500).json({ message: "Internal Server Error!!" })
+    }
+}
+
+export const resetPassword = async (req, res) => {
+    const { email, otp, password } = req.body;
+    try {
+        if (!email || !otp || !password) return res.status(400).json({ message: "All fields are required" })
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(400).json({ message: "User not found!!" })
+        }
+        if (user.resetPasswordToken !== otp) {
+            return res.status(400).json({ message: "Invalid OTP!!" })
+        }
+        if (user.resetPasswordExpire < Date.now()) {
+            return res.status(400).json({ message: "OTP Expired!!" })
+        }
+        const salt = await bcrypt.genSalt(13);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        user.password = hashedPassword;
+        user.resetPasswordToken = null;
+        user.resetPasswordExpire = null;
+        await user.save();
+        res.status(200).json({ message: "Password reset successfully" });
+    } catch (error) {
+        console.log("LogIn Error:", error);
+        res.status(500).json({ message: "Internal Server Error!!" })
+    }
+        }

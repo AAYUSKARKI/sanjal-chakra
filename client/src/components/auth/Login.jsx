@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { assets } from '../../assets/assets.js';
 import { Star, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -256,7 +256,7 @@ const Login = () => {
           </form>
 
           {/* Footer Links */}
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <p className="text-gray-400">
               Don't have an account?{' '}
               <Link 
@@ -264,6 +264,15 @@ const Login = () => {
                 className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
               >
                 Sign up
+              </Link>
+            </p>
+            <p className="text-gray-400">
+              Forgot your password?{' '}
+              <Link 
+                to={ROUTES.FORGOT_PASSWORD}
+                className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+              >
+                Reset it
               </Link>
             </p>
           </div>

@@ -54,6 +54,8 @@ const userSchema = mongoose.Schema(
       maxlength: 200,
       default:'',
     },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
     location:{
       type:String,
       maxlength: 200,
