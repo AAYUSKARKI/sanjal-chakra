@@ -17,7 +17,8 @@ const useWebRTC = (userId, remoteUserId) => {
   const [isCallEnded, setIsCallEnded] = useState(false);
   const [callInitiator, setCallInitiator] = useState(false);
   const [currentCallId, setCurrentCallId] = useState(null);
-  const isCleaningUp = useRef(false); // New: Prevent redundant cleanup
+  const isCleaningUp = useRef(false); // Prevent redundant cleanup
+  const isMounted = useRef(true); // Track component mount state
 
   const createPeerConnection = () => {
     console.log('Creating RTCPeerConnection for user:', userId);
@@ -30,32 +31,39 @@ const useWebRTC = (userId, remoteUserId) => {
     });
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && !isCallEnded && currentCallId) {
+      if (!isMounted.current || isCallEnded || !currentCallId) {
+        console.warn('Skipping ICE candidate: component unmounted, call ended, or missing callId');
+        return;
+      }
+      if (event.candidate) {
         console.log('Sending ICE candidate for call:', currentCallId);
         socket.emit('peer-negotiation-needed', {
           to: remoteUserId,
           candidate: event.candidate.toJSON(),
           callId: currentCallId,
         });
-      } else if (!event.candidate) {
-        console.log('ICE candidate gathering complete for call:', currentCallId);
       } else {
-        console.warn('Skipping ICE candidate due to call ended or missing callId');
+        console.log('ICE candidate gathering complete for call:', currentCallId);
       }
     };
 
     pc.ontrack = (event) => {
+      if (!isMounted.current || !currentCallId) {
+        console.warn('Ignoring remote track: component unmounted or missing callId');
+        return;
+      }
       console.log('Received remote track:', event.track);
       const [stream] = event.streams;
-      if (stream && stream.active && currentCallId) {
+      if (stream && stream.active) {
         console.log('Setting active remote stream for call:', currentCallId);
         setRemoteStream(stream);
       } else {
-        console.warn('Received inactive remote stream or missing callId:', currentCallId);
+        console.warn('Received inactive remote stream for call:', currentCallId);
       }
     };
 
     pc.oniceconnectionstatechange = () => {
+      if (!isMounted.current) return;
       const state = pc.iceConnectionState;
       console.log('ICE connection state:', state, 'for call:', currentCallId);
       if (state === 'failed' || state === 'disconnected') {
@@ -72,6 +80,7 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     pc.onsignalingstatechange = () => {
+      if (!isMounted.current) return;
       const state = pc.signalingState;
       console.log('Signaling state:', state, 'for call:', currentCallId);
       if (state === 'closed' && !isCleaningUp.current) {
@@ -85,25 +94,31 @@ const useWebRTC = (userId, remoteUserId) => {
 
   const processQueuedCandidates = async () => {
     const pc = peerConnectionRef.current;
-    if (!pc || !currentCallId || isCallEnded) {
-      console.warn('No peer connection or call ended; skipping candidate processing for call:', currentCallId);
-      candidatesQueueRef.current = []; // Clear queue
+    if (!isMounted.current || !pc || !currentCallId || isCallEnded) {
+      console.warn('No peer connection, unmounted, or call ended; clearing candidate queue for call:', currentCallId);
+      candidatesQueueRef.current = [];
       return;
     }
     while (candidatesQueueRef.current.length > 0) {
       const candidate = candidatesQueueRef.current.shift();
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        console.log('Added queued ICE candidate:', candidate, 'for call:', currentCallId);
+        console.log('Added queued ICE candidate for call:', currentCallId);
       } catch (error) {
-        console.error('Failed to add ICE candidate:', error, 'for call:', currentCallId);
+        console.error('Failed to add ICE candidate for call:', currentCallId, error);
       }
     }
   };
 
   const startCall = async () => {
-    if (isVideoCallActive || incomingCall || !userId || !remoteUserId) {
-      console.warn('Cannot start call: active call, incoming call, or missing IDs', { isVideoCallActive, incomingCall, userId, remoteUserId });
+    if (!isMounted.current || isVideoCallActive || incomingCall || !userId || !remoteUserId) {
+      console.warn('Cannot start call: unmounted, active call, incoming call, or missing IDs', {
+        isMounted: isMounted.current,
+        isVideoCallActive,
+        incomingCall,
+        userId,
+        remoteUserId,
+      });
       return;
     }
     try {
@@ -121,6 +136,12 @@ const useWebRTC = (userId, remoteUserId) => {
       });
       console.log('Local stream acquired:', stream, 'for call:', newCallId);
       setLocalStream(stream);
+
+      if (!isMounted.current) {
+        console.warn('Component unmounted during startCall; cleaning up');
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       setIsVideoCallActive(true);
       peerConnectionRef.current = createPeerConnection();
@@ -145,8 +166,8 @@ const useWebRTC = (userId, remoteUserId) => {
   };
 
   const acceptCall = async (callData) => {
-    if (!callData || !callData.offer || !callData.callId || !callData.from) {
-      console.warn('Invalid incoming call data:', callData);
+    if (!isMounted.current || !callData || !callData.offer || !callData.callId || !callData.from) {
+      console.warn('Invalid incoming call data or component unmounted:', callData);
       return;
     }
     try {
@@ -164,6 +185,12 @@ const useWebRTC = (userId, remoteUserId) => {
       });
       console.log('Local stream acquired:', stream, 'for call:', callId);
       setLocalStream(stream);
+
+      if (!isMounted.current) {
+        console.warn('Component unmounted during acceptCall; cleaning up');
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
 
       setIsVideoCallActive(true);
       peerConnectionRef.current = createPeerConnection();
@@ -193,17 +220,19 @@ const useWebRTC = (userId, remoteUserId) => {
     }
   };
 
-  const rejectCall = (callData) => {
-    if (!callData || !callData.callId || !callData.from) {
-      console.warn('Invalid incoming call data for rejection:', callData);
-      return;
-    }
-    socket.emit('call-rejected', { to: callData.from, callId: callData.callId });
+  const rejectCall = () => {
+    if (!isMounted.current || !incomingCall) return;
+    console.log('Rejecting call:', incomingCall.callId, 'from:', incomingCall.from);
+    socket.emit('call-rejected', { to: incomingCall.from, callId: incomingCall.callId });
+    setIncomingCall(null);
+    setCallStatus('Call rejected.');
+    setIsCallEnded(true);
+    endCall();
   };
 
   const endCall = () => {
-    if (isCallEnded || isCleaningUp.current) {
-      console.log('Call already ended or cleaning up:', currentCallId);
+    if (!isMounted.current || isCallEnded || isCleaningUp.current) {
+      console.log('Call already ended, unmounted, or cleaning up:', currentCallId);
       return;
     }
     isCleaningUp.current = true;
@@ -240,32 +269,32 @@ const useWebRTC = (userId, remoteUserId) => {
     isCleaningUp.current = false;
   };
 
-  // Toggle methods remain unchanged
   const toggleMic = () => {
-    if (localStream) {
-      localStream.getAudioTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-        console.log('Mic toggled:', track.enabled ? 'On' : 'Off', 'for call:', currentCallId);
-      });
-      setIsMicOn((prev) => !prev);
-    } else {
+    if (!isMounted.current || !localStream) {
       console.warn('No local stream to toggle mic for call:', currentCallId);
+      return;
     }
+    localStream.getAudioTracks().forEach((track) => {
+      track.enabled = !track.enabled;
+      console.log('Mic toggled:', track.enabled ? 'On' : 'Off', 'for call:', currentCallId);
+    });
+    setIsMicOn((prev) => !prev);
   };
 
   const toggleCamera = () => {
-    if (localStream) {
-      localStream.getVideoTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-        console.log('Camera toggled:', track.enabled ? 'On' : 'Off', 'for call:', currentCallId);
-      });
-      setIsCameraOn((prev) => !prev);
-    } else {
+    if (!isMounted.current || !localStream) {
       console.warn('No local stream to toggle camera for call:', currentCallId);
+      return;
     }
+    localStream.getVideoTracks().forEach((track) => {
+      track.enabled = !track.enabled;
+      console.log('Camera toggled:', track.enabled ? 'On' : 'Off', 'for call:', currentCallId);
+    });
+    setIsCameraOn((prev) => !prev);
   };
 
   const toggleFullScreen = () => {
+    if (!isMounted.current) return;
     const element = document.getElementById('video-call-container') || document.documentElement;
     if (!isFullScreen) {
       element.requestFullscreen().catch((err) => console.error('Fullscreen request failed:', err));
@@ -276,15 +305,20 @@ const useWebRTC = (userId, remoteUserId) => {
     console.log('Fullscreen toggled:', !isFullScreen, 'for call:', currentCallId);
   };
 
-  // Socket event listeners
   useEffect(() => {
+    isMounted.current = true;
     if (!userId || !remoteUserId) {
       console.warn('Missing userId or remoteUserId; skipping socket setup');
       return;
     }
 
     const handleIncomingCall = ({ from, offer, callId }) => {
-      if (!isVideoCallActive && !isCallEnded && callId) {
+      if (!isMounted.current || !callId) {
+        console.warn('Ignoring incoming call: unmounted or missing callId', { from, callId });
+        if (callId) socket.emit('call-rejected', { to: from, callId });
+        return;
+      }
+      if (!isVideoCallActive && !isCallEnded) {
         console.log('Received incoming call from:', from, 'callId:', callId);
         setIncomingCall({ from, offer, callId });
         setCallStatus('Incoming call...');
@@ -295,8 +329,8 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     const handleCallAccepted = async ({ answer, callId }) => {
-      if (callId !== currentCallId || !currentCallId) {
-        console.warn('Ignoring call-accepted for mismatched or null callId:', callId);
+      if (!isMounted.current || callId !== currentCallId || !currentCallId) {
+        console.warn('Ignoring call-accepted: unmounted or mismatched callId:', callId);
         return;
       }
       const pc = peerConnectionRef.current;
@@ -318,16 +352,18 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     const handleCallRejected = ({ callId }) => {
-      if (callId === currentCallId && currentCallId) {
-        console.log('Call rejected by remote user:', callId);
-        setCallStatus('Call rejected.');
-        endCall();
+      if (!isMounted.current || callId !== currentCallId || !currentCallId) {
+        console.warn('Ignoring call-rejected: unmounted or mismatched callId:', callId);
+        return;
       }
+      console.log('Call rejected by remote user:', callId);
+      setCallStatus('Call rejected.');
+      endCall();
     };
 
     const handlePeerNegotiation = ({ candidate, callId }) => {
-      if (!candidate || callId !== currentCallId || !currentCallId || isCallEnded) {
-        console.log('Ignoring invalid or mismatched candidate for call:', callId);
+      if (!isMounted.current || !candidate || callId !== currentCallId || !currentCallId || isCallEnded) {
+        console.warn('Ignoring peer-negotiation: unmounted, invalid candidate, or mismatched callId:', callId);
         return;
       }
       console.log('Received ICE candidate for call:', callId);
@@ -343,19 +379,20 @@ const useWebRTC = (userId, remoteUserId) => {
     };
 
     const handleEndCall = ({ callId }) => {
-      if (callId === currentCallId && currentCallId) {
-        console.log('Received end-call from remote for call:', callId);
-        setCallStatus('Call ended by remote.');
-        endCall();
+      if (!isMounted.current || callId !== currentCallId || !currentCallId) {
+        console.warn('Ignoring end-call: unmounted or mismatched callId:', callId);
+        return;
       }
+      console.log('Received end-call from remote for call:', callId);
+      setCallStatus('Call ended by remote.');
+      endCall();
     };
 
     const handleUserOffline = ({ userId: offlineUserId }) => {
-      if (offlineUserId === remoteUserId && currentCallId) {
-        console.log('Remote user offline:', offlineUserId);
-        setCallStatus('User offline.');
-        endCall();
-      }
+      if (!isMounted.current || offlineUserId !== remoteUserId) return;
+      console.log('Remote user offline:', offlineUserId);
+      setCallStatus('User offline.');
+      endCall();
     };
 
     socket.on('user-call', handleIncomingCall);
@@ -366,6 +403,7 @@ const useWebRTC = (userId, remoteUserId) => {
     socket.on('user-offline', handleUserOffline);
 
     return () => {
+      isMounted.current = false;
       socket.off('user-call', handleIncomingCall);
       socket.off('call-accepted', handleCallAccepted);
       socket.off('call-rejected', handleCallRejected);
@@ -373,33 +411,24 @@ const useWebRTC = (userId, remoteUserId) => {
       socket.off('end-call', handleEndCall);
       socket.off('user-offline', handleUserOffline);
       console.log('Cleaned up socket listeners for user:', userId);
-    };
-  }, [userId, remoteUserId, isVideoCallActive, isCallEnded, currentCallId]);
-
-  // Stream assignments remain unchanged
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      console.log('Assigning local stream to video ref for call:', currentCallId);
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream, currentCallId]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      console.log('Assigning remote stream to video ref for call:', currentCallId);
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream, currentCallId]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (!isCleaningUp.current) {
+      if (!isCleaningUp.current && isVideoCallActive) {
         console.log('useWebRTC cleanup: Ending call:', currentCallId);
         endCall();
       }
     };
-  }, [currentCallId]);
+  }, [userId, remoteUserId]);
+
+  useEffect(() => {
+    if (!isMounted.current || !localVideoRef.current || !localStream) return;
+    console.log('Assigning local stream to video ref for call:', currentCallId);
+    localVideoRef.current.srcObject = localStream;
+  }, [localStream, currentCallId]);
+
+  useEffect(() => {
+    if (!isMounted.current || !remoteVideoRef.current || !remoteStream) return;
+    console.log('Assigning remote stream to video ref for call:', currentCallId);
+    remoteVideoRef.current.srcObject = remoteStream;
+  }, [remoteStream, currentCallId]);
 
   return {
     localVideoRef,
