@@ -7,12 +7,8 @@ import { socket } from '../utils/socket';
 import useWebRTC from '../hooks/useWebRTC';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Message List Component (unchanged, but added logging for renders)
+// Message List Component
 const MessageList = ({ messages, user }) => {
-  useEffect(() => {
-    console.log('MessageList rendered with', messages.length, 'messages');
-  }, [messages]);
-
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <AnimatePresence>
@@ -26,9 +22,8 @@ const MessageList = ({ messages, user }) => {
             transition={{ duration: 0.3 }}
           >
             <div
-              className={`p-3 text-sm max-w-sm rounded-lg shadow-md ${message.sender === user._id
-                ? 'bg-blue-100 text-slate-700 rounded-br-none'
-                : 'bg-indigo-100 text-slate-700 rounded-bl-none'
+              className={`p-3 text-sm max-w-sm rounded-lg shadow-md ${
+                message.sender === user._id ? 'bg-blue-100 text-slate-700 rounded-br-none' : 'bg-indigo-100 text-slate-700 rounded-bl-none'
               }`}
             >
               {message.message_type === 'image' && (
@@ -46,7 +41,7 @@ const MessageList = ({ messages, user }) => {
   );
 };
 
-// Video Call UI Component (simplified, removed redundant useEffects since handled in hook)
+// Video Call UI Component
 const VideoCallUI = ({
   localVideoRef,
   remoteVideoRef,
@@ -57,19 +52,38 @@ const VideoCallUI = ({
   isCameraOn,
   toggleFullScreen,
   isFullScreen,
+  localStream,
   remoteStream,
 }) => {
+  // Assign streams only when refs are ready (fixes timing issues)
   useEffect(() => {
-    console.log('VideoCallUI mounted');
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+      console.log('Assigned localStream to localVideoRef:', localStream);
+    }
+  }, [localStream, localVideoRef]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      console.log('Assigned remoteStream to remoteVideoRef:', remoteStream);
+    }
+  }, [remoteStream, remoteVideoRef]);
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      console.log('VideoCallUI unmounted');
+      if (localVideoRef.current) localVideoRef.current.srcObject = null;
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+      console.log('Cleaned up video refs on unmount');
     };
   }, []);
 
   return (
     <div
-      id="video-call-container"
-      className={`p-5 flex flex-col md:flex-row gap-4 justify-center bg-gray-100 rounded-lg shadow-lg ${isFullScreen ? 'fixed inset-0 z-50' : ''}`}
+      className={`p-5 flex flex-col md:flex-row gap-4 justify-center bg-gray-100 rounded-lg shadow-lg ${
+        isFullScreen ? 'fixed inset-0 z-50' : ''
+      }`}
     >
       <div className="relative">
         <h3 className="text-sm font-medium mb-2">You</h3>
@@ -136,50 +150,44 @@ const VideoCallUI = ({
   );
 };
 
-// Incoming Call Modal Component (added logging)
-const IncomingCallModal = ({ caller, onAccept, onReject }) => {
-  useEffect(() => {
-    console.log('IncomingCallModal shown for caller:', caller?.fullname);
-  }, [caller]);
-
-  return (
+// Incoming Call Modal Component
+const IncomingCallModal = ({ caller, onAccept, onReject, callId }) => (
+  <motion.div
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.3 }}
+  >
     <motion.div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center gap-4 max-w-sm w-full"
+      initial={{ scale: 0.8, y: 50 }}
+      animate={{ scale: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <motion.div
-        className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center gap-4 max-w-sm w-full"
-        initial={{ scale: 0.8, y: 50 }}
-        animate={{ scale: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <h2 className="text-lg font-semibold">Incoming Call</h2>
-        <p className="text-gray-600">From: {caller?.fullname || 'Unknown'}</p>
-        <div className="flex gap-4">
-          <button
-            onClick={onAccept}
-            className="p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition"
-            aria-label="Accept call"
-          >
-            <Video size={24} />
-          </button>
-          <button
-            onClick={onReject}
-            className="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
-            aria-label="Reject call"
-          >
-            <X size={24} />
-          </button>
-        </div>
-      </motion.div>
+      <h2 className="text-lg font-semibold">Incoming Call</h2>
+      <p className="text-gray-600">From: {caller?.fullname || 'Unknown'}</p>
+      <div className="flex gap-4">
+        <button
+          onClick={() => onAccept()}
+          className="p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition"
+          aria-label="Accept call"
+        >
+          <Video size={24} />
+        </button>
+        <button
+          onClick={() => onReject(callId)}
+          className="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
+          aria-label="Reject call"
+        >
+          <X size={24} />
+        </button>
+      </div>
     </motion.div>
-  );
-};
+  </motion.div>
+);
 
-// Chat Input Component (added logging for send)
+// Chat Input Component
 const ChatInput = ({ text, setText, image, setImage, sendMessage }) => (
   <div className="px-4 mb-5">
     <div className="flex items-center gap-3 p-2 bg-white w-full max-w-xl mx-auto border border-gray-200 shadow rounded-full">
@@ -187,12 +195,7 @@ const ChatInput = ({ text, setText, image, setImage, sendMessage }) => (
         type="text"
         className="flex-1 outline-none text-slate-700"
         placeholder="Type a message..."
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            console.log('Sending message via Enter key');
-            sendMessage();
-          }
-        }}
+        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
         onChange={(e) => setText(e.target.value)}
         value={text}
         aria-label="Type a message"
@@ -208,20 +211,11 @@ const ChatInput = ({ text, setText, image, setImage, sendMessage }) => (
           id="image"
           accept="image/*"
           hidden
-          onChange={(e) => {
-            const file = e.target.files[0];
-            if (file) {
-              console.log('Image selected:', file.name);
-              setImage(file);
-            }
-          }}
+          onChange={(e) => setImage(e.target.files[0])}
         />
       </label>
       <button
-        onClick={() => {
-          console.log('Sending message via button');
-          sendMessage();
-        }}
+        onClick={sendMessage}
         className="bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-700 hover:to-purple-800 active:scale-95 text-white p-2 rounded-full"
         aria-label="Send message"
       >
@@ -259,19 +253,19 @@ const ChatBox = () => {
     isCameraOn,
     toggleFullScreen,
     isFullScreen,
+    localStream,
     remoteStream,
   } = useWebRTC(user?._id, userId);
 
-  // Fetch receiver
+  // Fetch receiver data
   const fetchReceiver = async () => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       const { data } = await API.get(`/users/${userId}`, { withCredentials: true });
-      console.log('Receiver fetched:', data.user.fullname);
       setReceiver(data.user);
-    } catch (err) {
-      console.error('Fetch receiver error:', err);
+    } catch (error) {
       setError('Failed to load user data.');
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -279,30 +273,23 @@ const ChatBox = () => {
 
   // Fetch messages
   const fetchMessages = async () => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       const { data } = await API.get(`/message/${userId}`, { withCredentials: true });
-      const sortedMessages = data.messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      console.log('Messages fetched:', sortedMessages.length);
-      setMessages(sortedMessages);
-    } catch (err) {
-      console.error('Fetch messages error:', err);
+      setMessages(data.messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+    } catch (error) {
       setError('Failed to load messages.');
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Send message with optimistic update and rollback
+  // Send message with optimistic update
   const sendMessage = async () => {
-    if (!text && !image) {
-      console.warn('Empty message; skipping send');
-      return;
-    }
-
-    const tempId = Date.now();
+    if (!text && !image) return;
     const tempMessage = {
-      _id: tempId,
+      _id: Date.now(),
       sender: user._id,
       receiver: userId,
       text,
@@ -310,7 +297,6 @@ const ChatBox = () => {
       media_url: image ? URL.createObjectURL(image) : null,
       createdAt: new Date().toISOString(),
     };
-
     setMessages((prev) => [...prev, tempMessage]);
     setText('');
     setImage(null);
@@ -319,62 +305,49 @@ const ChatBox = () => {
     formData.append('sender', user._id);
     formData.append('text', text);
     formData.append('message_type', image ? 'image' : 'text');
-    if (image) formData.append('image', image);
+    if (image) {
+      formData.append('image', image);
+    }
 
     try {
       const { data } = await API.post(`/message/send/${userId}`, formData, {
         withCredentials: true,
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      console.log('Message sent successfully:', data.data._id);
-      setMessages((prev) =>
-        prev.map((msg) => (msg._id === tempId ? data.data : msg))
-      );
-    } catch (err) {
-      console.error('Send message error:', err);
+      setMessages((prev) => prev.map((msg) => (msg._id === tempMessage._id ? data.data : msg)));
+    } catch (error) {
       setError('Failed to send message.');
-      setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
+      setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
+      console.error(error);
     }
   };
 
-  // Socket setup for messages
+  // Socket.IO message handling
   useEffect(() => {
-    if (!user) return;
-
-    socket.connect();
-    console.log('Socket connected and registered for user:', user._id);
-    socket.emit('register', user._id);
-
-    const handleReceiveMessage = (message) => {
-      if (
-        (message.sender === user._id && message.receiver === userId) ||
-        (message.sender === userId && message.receiver === user._id)
-      ) {
-        console.log('Received new message:', message.text);
-        setMessages((prev) =>
-          [...prev, message].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-        );
-      }
-    };
-
-    socket.on('receive-message', handleReceiveMessage);
-
-    return () => {
-      socket.off('receive-message', handleReceiveMessage);
-      socket.disconnect();
-      console.log('Socket disconnected');
-    };
+    if (user) {
+      socket.connect();
+      socket.emit('register', user._id);
+      socket.on('receive-message', (message) => {
+        if (
+          (message.sender === user._id && message.receiver === userId) ||
+          (message.sender === userId && message.receiver === user._id)
+        ) {
+          setMessages((prev) => [...prev, message].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+        }
+      });
+      return () => {
+        socket.off('receive-message');
+        socket.disconnect();
+      };
+    }
   }, [user, userId]);
 
-  // Auto-scroll to bottom
+  // Scroll to latest message
   useEffect(() => {
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      console.log('Scrolled to latest message');
-    }
+    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initial fetches
+  // Fetch initial data
   useEffect(() => {
     fetchReceiver();
     fetchMessages();
@@ -406,7 +379,7 @@ const ChatBox = () => {
           <p className="text-sm text-gray-500">@{receiver.fullname}</p>
           <div className="flex gap-3 mt-2">
             <button
-              onClick={() => console.log('Audio call started')} // Placeholder for audio
+              onClick={() => console.log('Audio call started')}
               className="p-2 rounded-full bg-green-500 text-white hover:bg-green-600 transition"
               aria-label="Start audio call"
             >
@@ -416,7 +389,7 @@ const ChatBox = () => {
               onClick={isVideoCallActive ? endVideoCall : startVideoCall}
               className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition disabled:opacity-50"
               aria-label={isVideoCallActive ? 'End video call' : 'Start video call'}
-              disabled={!!incomingCall}
+              disabled={incomingCall}
             >
               <Video size={20} />
             </button>
@@ -454,7 +427,8 @@ const ChatBox = () => {
           <IncomingCallModal
             caller={receiver}
             onAccept={() => acceptCall(incomingCall)}
-            onReject={rejectCall}
+            onReject={() => rejectCall(incomingCall.callId)}
+            callId={incomingCall.callId}
           />
         )}
       </AnimatePresence>
@@ -471,6 +445,7 @@ const ChatBox = () => {
           isCameraOn={isCameraOn}
           toggleFullScreen={toggleFullScreen}
           isFullScreen={isFullScreen}
+          localStream={localStream}
           remoteStream={remoteStream}
         />
       )}
