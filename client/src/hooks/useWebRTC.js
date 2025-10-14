@@ -16,6 +16,7 @@ const useWebRTC = (userId, remoteUserId) => {
     const [incomingCall, setIncomingCall] = useState(null);
     const [isCallEnded, setIsCallEnded] = useState(false);
     const [callInitiator, setCallInitiator] = useState(false);
+    const remoteStreamIdRef = useRef(null); // Track the remote stream ID to prevent duplicates
 
     const createPeerConnection = () => {
         const pc = new RTCPeerConnection({
@@ -42,26 +43,20 @@ const useWebRTC = (userId, remoteUserId) => {
             console.log('✅ Received remote track:', event.streams);
             const [remote] = event.streams;
             if (remote) {
+                // Prevent duplicate stream assignments
+                if (remoteStreamIdRef.current === remote.id) {
+                    console.log('Skipping duplicate remote stream:', remote.id);
+                    return;
+                }
                 console.log('Remote stream tracks:', remote.getTracks());
                 remote.getTracks().forEach(track => {
                     console.log(`Track kind: ${track.kind}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+                    if (track.kind === 'video') {
+                        console.log(`Video track details: width=${track.getSettings().width}, height=${track.getSettings().height}, frameRate=${track.getSettings().frameRate}`);
+                    }
                 });
+                remoteStreamIdRef.current = remote.id;
                 setRemoteStream(remote);
-                if (remoteVideoRef.current) {
-                    remoteVideoRef.current.srcObject = remote;
-                    remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
-                    console.log('🎥 Attached and attempted to play remote stream');
-                } else {
-                    const attachInterval = setInterval(() => {
-                        if (remoteVideoRef.current) {
-                            remoteVideoRef.current.srcObject = remote;
-                            remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
-                            console.log('🎥 Delayed attach and play: remote stream bound');
-                            clearInterval(attachInterval);
-                        }
-                    }, 300);
-                    setTimeout(() => clearInterval(attachInterval), 3000);
-                }
             }
         };
 
@@ -110,6 +105,7 @@ const useWebRTC = (userId, remoteUserId) => {
             setIsCallEnded(false);
             setCallInitiator(true);
             candidatesRef.current = [];
+            remoteStreamIdRef.current = null; // Reset on new call
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: true,
@@ -122,7 +118,7 @@ const useWebRTC = (userId, remoteUserId) => {
             console.log('Local stream obtained:', stream);
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
-                console.log('Assigned local stream to localVideoRef:', localVideoRef.current.srcObject);
+                localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
             } else {
                 console.warn('localVideoRef.current is not available');
             }
@@ -150,6 +146,7 @@ const useWebRTC = (userId, remoteUserId) => {
             setIsCallEnded(false);
             setCallInitiator(false);
             candidatesRef.current = [];
+            remoteStreamIdRef.current = null; // Reset on new call
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: true,
@@ -162,7 +159,7 @@ const useWebRTC = (userId, remoteUserId) => {
             console.log('Local stream obtained:', stream);
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
-                console.log('Assigned local stream to localVideoRef:', localVideoRef.current.srcObject);
+                localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
             } else {
                 console.warn('localVideoRef.current is not available');
             }
@@ -229,6 +226,7 @@ const useWebRTC = (userId, remoteUserId) => {
         setCallStatus('');
         setCallInitiator(false);
         candidatesRef.current = [];
+        remoteStreamIdRef.current = null;
         if (callInitiator || isVideoCallActive) {
             socket.emit('end-call', { to: remoteUserId });
             console.log('endVideoCall: Emitted end-call to', remoteUserId);
@@ -338,17 +336,27 @@ const useWebRTC = (userId, remoteUserId) => {
     }, [userId, remoteUserId]);
 
     useEffect(() => {
-        if (localStream && localVideoRef.current) {
+        if (localVideoRef.current && localStream) {
             localVideoRef.current.srcObject = localStream;
             localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
-            console.log('useEffect: Assigned localStream to localVideoRef:', localVideoRef.current.srcObject);
+            console.log('useEffect: Assigned localStream to localVideoRef:', localStream);
         }
-        if (remoteStream && remoteVideoRef.current) {
+    }, [localStream, localVideoRef]);
+
+    useEffect(() => {
+        if (remoteVideoRef.current && remoteStream) {
             remoteVideoRef.current.srcObject = remoteStream;
-            remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
+            const playVideo = () => {
+                remoteVideoRef.current.play().catch(e => {
+                    console.error('Failed to play remote video:', e);
+                    // Retry after a short delay
+                    setTimeout(playVideo, 500);
+                });
+            };
+            playVideo();
             console.log('useEffect: Assigned remoteStream to remoteVideoRef:', remoteStream);
         }
-    }, [localStream, remoteStream, localVideoRef, remoteVideoRef]);
+    }, [remoteStream, remoteVideoRef]);
 
     return {
         localVideoRef,

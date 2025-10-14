@@ -43,120 +43,140 @@ const MessageList = ({ messages, user }) => {
 
 // Video Call UI Component
 const VideoCallUI = ({
-  localVideoRef,
-  remoteVideoRef,
-  endVideoCall,
-  toggleMic,
-  toggleCamera,
-  isMicOn,
-  isCameraOn,
-  toggleFullScreen,
-  isFullScreen,
-  localStream,
-  remoteStream,
+    localVideoRef,
+    remoteVideoRef,
+    endVideoCall,
+    toggleMic,
+    toggleCamera,
+    isMicOn,
+    isCameraOn,
+    toggleFullScreen,
+    isFullScreen,
+    localStream,
+    remoteStream,
 }) => {
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
-      console.log('Assigned localStream to localVideoRef:', localStream);
-    }
-  }, [localStream, localVideoRef]);
+    useEffect(() => {
+        if (localVideoRef.current && localStream) {
+            localVideoRef.current.srcObject = localStream;
+            const playVideo = () => {
+                localVideoRef.current.play().catch(e => {
+                    console.error('Failed to play local video:', e);
+                    setTimeout(playVideo, 500); // Retry
+                });
+            };
+            playVideo();
+            console.log('Assigned localStream to localVideoRef:', localStream);
+        }
+    }, [localStream, localVideoRef]);
 
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
-      console.log('Assigned remoteStream to remoteVideoRef:', remoteStream);
-    }
-  }, [remoteStream, remoteVideoRef]);
+    useEffect(() => {
+        if (remoteVideoRef.current && remoteStream) {
+            remoteVideoRef.current.srcObject = remoteStream;
+            const playVideo = () => {
+                remoteVideoRef.current.play().catch(e => {
+                    console.error('Failed to play remote video:', e);
+                    setTimeout(playVideo, 500); // Retry
+                });
+            };
+            playVideo();
+            console.log('Assigned remoteStream to remoteVideoRef:', remoteStream);
+        }
+    }, [remoteStream, remoteVideoRef]);
 
-  useEffect(() => {
-    return () => {
-      if (localVideoRef.current) localVideoRef.current.srcObject = null;
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-      console.log('Cleaned up video refs on unmount');
-    };
-  }, []);
+    useEffect(() => {
+        return () => {
+            if (localVideoRef.current) localVideoRef.current.srcObject = null;
+            if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+            console.log('Cleaned up video refs on unmount');
+        };
+    }, []);
 
-  return (
-    <div
-      id="video-call-container"
-      className={`p-5 flex flex-col md:flex-row gap-4 justify-center bg-gray-100 rounded-lg shadow-lg ${
-        isFullScreen ? 'fixed inset-0 z-50' : ''
-      }`}
-    >
-      <div className="relative">
-        <h3 className="text-sm font-medium mb-2">You</h3>
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full md:w-64 rounded-lg shadow"
-          onError={(e) => console.error('Local video error:', e)}
-          onCanPlay={() => console.log('Local video can play')}
-        />
-        {!isCameraOn && (
-          <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
-            <VideoOff className="text-white" size={32} />
-          </div>
-        )}
-      </div>
-      <div className="relative">
-        <h3 className="text-sm font-medium mb-2">Remote</h3>
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-full md:w-64 rounded-lg shadow"
-          onError={(e) => console.error('Remote video error:', e)}
-          onCanPlay={() => console.log('Remote video can play')}
-        />
-        {!remoteStream && (
-          <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
-            <span className="text-white">Waiting for remote video...</span>
-          </div>
-        )}
-        {remoteStream && remoteStream.getVideoTracks().length === 0 && (
-          <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
-            <span className="text-white">No remote video track available</span>
-          </div>
-        )}
-      </div>
-      <div className="flex gap-2 mt-4 justify-center">
-        <button
-          onClick={toggleMic}
-          className={`p-2 rounded-full ${isMicOn ? 'bg-green-500' : 'bg-red-500'} text-white hover:opacity-80 transition`}
-          aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+    return (
+        <div
+            id="video-call-container"
+            className={`p-5 flex flex-col md:flex-row gap-4 justify-center bg-gray-100 rounded-lg shadow-lg ${
+                isFullScreen ? 'fixed inset-0 z-50' : ''
+            }`}
         >
-          {isMicOn ? <Mic size={18} /> : <MicOff size={18} />}
-        </button>
-        <button
-          onClick={toggleCamera}
-          className={`p-2 rounded-full ${isCameraOn ? 'bg-green-500' : 'bg-red-500'} text-white hover:opacity-80 transition`}
-          aria-label={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
-        >
-          {isCameraOn ? <Video size={18} /> : <VideoOff size={18} />}
-        </button>
-        <button
-          onClick={toggleFullScreen}
-          className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition"
-          aria-label={isFullScreen ? 'Exit full screen' : 'Enter full screen'}
-        >
-          {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-        </button>
-        <button
-          onClick={endVideoCall}
-          className="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
-          aria-label="End call"
-        >
-          <X size={18} />
-        </button>
-      </div>
-    </div>
-  );
+            <div className="relative">
+                <h3 className="text-sm font-medium mb-2">You</h3>
+                <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full md:w-64 rounded-lg shadow"
+                    onError={(e) => console.error('Local video error:', e)}
+                    onCanPlay={() => console.log('Local video can play')}
+                />
+                {!localStream && (
+                    <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
+                        <span className="text-white">No local video</span>
+                    </div>
+                )}
+                {localStream && localStream.getVideoTracks().length === 0 && (
+                    <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
+                        <VideoOff className="text-white" size={32} />
+                    </div>
+                )}
+            </div>
+            <div className="relative">
+                <h3 className="text-sm font-medium mb-2">Remote</h3>
+                <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className="w-full md:w-64 rounded-lg shadow"
+                    onError={(e) => console.error('Remote video error:', e)}
+                    onCanPlay={() => console.log('Remote video can play')}
+                    onLoadedMetadata={() => console.log('Remote video metadata loaded')}
+                />
+                {!remoteStream && (
+                    <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
+                        <span className="text-white">Waiting for remote video...</span>
+                    </div>
+                )}
+                {remoteStream && remoteStream.getVideoTracks().length === 0 && (
+                    <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
+                        <span className="text-white">No remote video track available</span>
+                    </div>
+                )}
+            </div>
+            <div className="flex gap-2 mt-4 justify-center">
+                <button
+                    onClick={toggleMic}
+                    className={`p-2 rounded-full ${isMicOn ? 'bg-green-500' : 'bg-red-500'} text-white hover:opacity-80 transition`}
+                    aria-label={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                >
+                    {isMicOn ? <Mic size={18} /> : <MicOff size={18} />}
+                </button>
+                <button
+                    onClick={toggleCamera}
+                    className={`p-2 rounded-full ${isCameraOn ? 'bg-green-500' : 'bg-red-500'} text-white hover:opacity-80 transition`}
+                    aria-label={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
+                >
+                    {isCameraOn ? <Video size={18} /> : <VideoOff size={18} />}
+                </button>
+                <button
+                    onClick={toggleFullScreen}
+                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition"
+                    aria-label={isFullScreen ? 'Exit full screen' : 'Enter full screen'}
+                >
+                    {isFullScreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                </button>
+                <button
+                    onClick={endVideoCall}
+                    className="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition"
+                    aria-label="End call"
+                >
+                    <X size={18} />
+                </button>
+            </div>
+        </div>
+    );
 };
+
+
 
 // Incoming Call Modal Component
 const IncomingCallModal = ({ caller, onAccept, onReject, callId }) => (
