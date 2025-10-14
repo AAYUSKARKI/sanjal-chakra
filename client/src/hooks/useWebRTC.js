@@ -6,7 +6,6 @@ const useWebRTC = (userId, remoteUserId) => {
     const remoteVideoRef = useRef(null);
     const peerConnectionRef = useRef(null);
     const candidatesRef = useRef([]);
-    const pendingRemoteStream = useRef(null);
     const [localStream, setLocalStream] = useState(null);
     const [remoteStream, setRemoteStream] = useState(null);
     const [isVideoCallActive, setIsVideoCallActive] = useState(false);
@@ -16,7 +15,7 @@ const useWebRTC = (userId, remoteUserId) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [incomingCall, setIncomingCall] = useState(null);
     const [isCallEnded, setIsCallEnded] = useState(false);
-    const [callInitiator, setCallInitiator] = useState(false); // Track if this user initiated the call
+    const [callInitiator, setCallInitiator] = useState(false);
 
     const createPeerConnection = () => {
         const pc = new RTCPeerConnection({
@@ -24,6 +23,8 @@ const useWebRTC = (userId, remoteUserId) => {
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
+                // Add TURN server if needed
+                // { urls: 'turn:your.turn.server', username: 'your_username', credential: 'your_credential' },
             ],
         });
 
@@ -40,42 +41,34 @@ const useWebRTC = (userId, remoteUserId) => {
         pc.ontrack = (event) => {
             console.log('✅ Received remote track:', event.streams);
             const [remote] = event.streams;
-
-            if (!remote) {
-                console.warn('⚠️ No remote stream found in ontrack event');
-                return;
-            }
-
-            // Save reference for later use
-            pendingRemoteStream.current = remote;
-            setRemoteStream(remote);
-
-            // 🧠 Immediate attach if the video element is available
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.autoplay = true;
-                remoteVideoRef.current.playsInline = true;
-                remoteVideoRef.current.srcObject = remote;
-                console.log('🎥 Attached remote stream instantly to video element');
-            } else {
-                // 🕐 Retry attachment until the ref is ready (DOM not yet rendered)
-                const attachInterval = setInterval(() => {
-                    if (remoteVideoRef.current) {
-                        remoteVideoRef.current.srcObject = remote;
-                        console.log('🎥 Delayed attach: remote stream bound successfully');
-                        clearInterval(attachInterval);
-                    }
-                }, 300);
-
-                // 🧹 Safety cleanup after 3 seconds to avoid infinite retry
-                setTimeout(() => clearInterval(attachInterval), 3000);
+            if (remote) {
+                console.log('Remote stream tracks:', remote.getTracks());
+                remote.getTracks().forEach(track => {
+                    console.log(`Track kind: ${track.kind}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+                });
+                setRemoteStream(remote);
+                if (remoteVideoRef.current) {
+                    remoteVideoRef.current.srcObject = remote;
+                    remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
+                    console.log('🎥 Attached and attempted to play remote stream');
+                } else {
+                    const attachInterval = setInterval(() => {
+                        if (remoteVideoRef.current) {
+                            remoteVideoRef.current.srcObject = remote;
+                            remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
+                            console.log('🎥 Delayed attach and play: remote stream bound');
+                            clearInterval(attachInterval);
+                        }
+                    }, 300);
+                    setTimeout(() => clearInterval(attachInterval), 3000);
+                }
             }
         };
-
 
         pc.oniceconnectionstatechange = () => {
             console.log('ICE connection state:', pc.iceConnectionState);
             if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                setCallStatus('Call disconnected due to network issues. Attempting to reconnect...');
+                setCallStatus('Call disconnected. Attempting to reconnect...');
                 setTimeout(() => {
                     if (pc.iceConnectionState !== 'connected') {
                         endVideoCall();
@@ -115,11 +108,15 @@ const useWebRTC = (userId, remoteUserId) => {
         try {
             setCallStatus('Calling...');
             setIsCallEnded(false);
-            setCallInitiator(true); // Mark this user as the initiator
+            setCallInitiator(true);
             candidatesRef.current = [];
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user' },
+                video: true,
                 audio: true,
+            });
+            stream.getVideoTracks().forEach(track => {
+                track.enabled = true;
+                console.log('Video track enabled:', track.enabled);
             });
             setLocalStream(stream);
             console.log('Local stream obtained:', stream);
@@ -151,11 +148,15 @@ const useWebRTC = (userId, remoteUserId) => {
         try {
             setCallStatus('Accepting call...');
             setIsCallEnded(false);
-            setCallInitiator(false); // Mark this user as not the initiator
+            setCallInitiator(false);
             candidatesRef.current = [];
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user' },
+                video: true,
                 audio: true,
+            });
+            stream.getVideoTracks().forEach(track => {
+                track.enabled = true;
+                console.log('Video track enabled:', track.enabled);
             });
             setLocalStream(stream);
             console.log('Local stream obtained:', stream);
@@ -228,7 +229,6 @@ const useWebRTC = (userId, remoteUserId) => {
         setCallStatus('');
         setCallInitiator(false);
         candidatesRef.current = [];
-        // Only emit end-call if this user initiated the call or is in an active call
         if (callInitiator || isVideoCallActive) {
             socket.emit('end-call', { to: remoteUserId });
             console.log('endVideoCall: Emitted end-call to', remoteUserId);
@@ -249,6 +249,7 @@ const useWebRTC = (userId, remoteUserId) => {
         if (localStream) {
             localStream.getVideoTracks().forEach((track) => {
                 track.enabled = !track.enabled;
+                console.log('Toggled video track:', track.enabled);
             });
             setIsCameraOn((prev) => !prev);
         }
@@ -339,24 +340,15 @@ const useWebRTC = (userId, remoteUserId) => {
     useEffect(() => {
         if (localStream && localVideoRef.current) {
             localVideoRef.current.srcObject = localStream;
+            localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
             console.log('useEffect: Assigned localStream to localVideoRef:', localVideoRef.current.srcObject);
         }
         if (remoteStream && remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remoteStream;
-            console.log('useEffect: Assigned remoteStream to remoteVideoRef:', remoteVideoRef.current.srcObject);
-            pendingRemoteStream.current = null;
-        } else if (remoteStream) {
-            console.warn('useEffect: remoteVideoRef.current is not available, stream queued');
+            remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
+            console.log('useEffect: Assigned remoteStream to remoteVideoRef:', remoteStream);
         }
     }, [localStream, remoteStream, localVideoRef, remoteVideoRef]);
-
-    useEffect(() => {
-        if (pendingRemoteStream.current && remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = pendingRemoteStream.current;
-            console.log('useEffect: Assigned pendingRemoteStream to remoteVideoRef:', remoteVideoRef.current.srcObject);
-            pendingRemoteStream.current = null;
-        }
-    }, [remoteVideoRef]);
 
     return {
         localVideoRef,
@@ -374,6 +366,8 @@ const useWebRTC = (userId, remoteUserId) => {
         isCameraOn,
         toggleFullScreen,
         isFullScreen,
+        localStream,
+        remoteStream,
     };
 };
 

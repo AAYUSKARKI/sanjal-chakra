@@ -55,10 +55,10 @@ const VideoCallUI = ({
   localStream,
   remoteStream,
 }) => {
-  // Assign streams only when refs are ready (fixes timing issues)
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
       console.log('Assigned localStream to localVideoRef:', localStream);
     }
   }, [localStream, localVideoRef]);
@@ -66,11 +66,11 @@ const VideoCallUI = ({
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(e => console.error('Failed to play remote video:', e));
       console.log('Assigned remoteStream to remoteVideoRef:', remoteStream);
     }
   }, [remoteStream, remoteVideoRef]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (localVideoRef.current) localVideoRef.current.srcObject = null;
@@ -81,6 +81,7 @@ const VideoCallUI = ({
 
   return (
     <div
+      id="video-call-container"
       className={`p-5 flex flex-col md:flex-row gap-4 justify-center bg-gray-100 rounded-lg shadow-lg ${
         isFullScreen ? 'fixed inset-0 z-50' : ''
       }`}
@@ -94,6 +95,7 @@ const VideoCallUI = ({
           playsInline
           className="w-full md:w-64 rounded-lg shadow"
           onError={(e) => console.error('Local video error:', e)}
+          onCanPlay={() => console.log('Local video can play')}
         />
         {!isCameraOn && (
           <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
@@ -109,10 +111,16 @@ const VideoCallUI = ({
           playsInline
           className="w-full md:w-64 rounded-lg shadow"
           onError={(e) => console.error('Remote video error:', e)}
+          onCanPlay={() => console.log('Remote video can play')}
         />
         {!remoteStream && (
           <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
             <span className="text-white">Waiting for remote video...</span>
+          </div>
+        )}
+        {remoteStream && remoteStream.getVideoTracks().length === 0 && (
+          <div className="absolute inset-0 bg-gray-800 flex items-center justify-center rounded-lg">
+            <span className="text-white">No remote video track available</span>
           </div>
         )}
       </div>
