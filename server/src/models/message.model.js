@@ -1,47 +1,52 @@
 import mongoose from "mongoose";
 
-const messageSchema = new mongoose.Schema({
+const messageSchema = new mongoose.Schema(
+  {
     sender: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required:true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
+
+    // Either a single receiver OR a group
     receiver: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required:true,
-    }, 
-    message_type: {
-        type: String,
-        enum: ['text', 'image', 'video', 'file']
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     group: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Group",
-        default: null,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Group",
+      default: null,
     },
+
+    message_type: {
+      type: String,
+      enum: ["text", "image", "video", "file"],
+      default: "text",
+    },
+
     text: {
-        type:String,
-        default:'',
+      type: String,
+      default: "",
     },
-    media_url:{
-        type:String,
-        default:'',
+    media_url: {
+      type: String,
+      default: "",
     },
-    seen:{
-        type:Boolean,
-        default:false,
-    },
-    createdAt:{
-        type:Date,
-        default:Date.now,
-    }
-},
-    {
-        timestamps: true
-    }
+    seenBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+  },
+  { timestamps: true }
+);
 
+// Add an index for fast querying by group or receiver
+messageSchema.index({ group: 1, createdAt: -1 });
+messageSchema.index({ receiver: 1, createdAt: -1 });
 
-)
-const Message= mongoose.model("Message",messageSchema);
+const Message = mongoose.model("Message", messageSchema);
 export default Message;

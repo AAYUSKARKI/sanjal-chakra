@@ -22,10 +22,13 @@ export const sendMessage = async (req, res) => {
 
         // Upload image if present
         if (image) {
-            const result = await cloudinary.uploader.upload(image.path, {
-                resource_type: "image", // Automatically detect type
+            const mime = image.mimetype;
+            const base64Image = `data:${mime};base64,${image.buffer.toString("base64")}`;
+            const result = await cloudinary.uploader.upload(base64Image, {
+                resource_type: "image",
+                folder: "messages",
             });
-            imageUrl = result.secure_url;
+            imageUrl = result.secure_url;   
         }
 
         // Save message in DB

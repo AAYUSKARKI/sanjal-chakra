@@ -28,7 +28,6 @@ const groupSchema = new mongoose.Schema(
         photo: {
              type: String, 
              default: ""
-            
             },
             
     },

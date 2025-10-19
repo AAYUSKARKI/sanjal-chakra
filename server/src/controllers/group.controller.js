@@ -1,32 +1,54 @@
 import Group from "../models/group.model.js";
 import Message from "../models/message.model.js";
 import cloudinary from "../lib/cloudinary.js";
+import { emitToGroup } from "../sockets/socket.io.js";
 
 // Create a new group
 export const createGroup = async (req, res) => {
-    try {
-        const { name, description, members } = req.body;
+  const { name, description, members } = req.body;
+  const groupPhoto = req.file;
+  let photoUrl = "";
 
-        let photoUrl = "";
-        if (req.file) {
-            const result = await cloudinary.uploader.upload(req.file.path, {
-                folder: "group_photos",
-            });
-            photoUrl = result.secure_url;
-        }
-
-        const group = await Group.create({
-            name,
-            description,
-            members: members ? [...members, req.user._id] : [req.user._id],
-            admins: [req.user._id],
-            photo: photoUrl,
-        });
-
-        res.status(201).json(group);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+  try {
+    if (!name) {
+      return res.status(400).json({ message: "Group name is required." });
     }
+
+    if (groupPhoto) {
+      const mime = groupPhoto.mimetype;
+      const mimeToTypeMap = {
+        "image/jpeg": "image",
+        "image/png": "image",
+        "image/gif": "image",
+      };
+
+      const media_type = mimeToTypeMap[mime];
+      if (!media_type) {
+        return res.status(400).json({ message: "Unsupported media type. Only images (JPEG, PNG, GIF) are allowed." });
+      }
+
+      const base64Media = `data:${mime};base64,${groupPhoto.buffer.toString("base64")}`;
+      const result = await cloudinary.uploader.upload(base64Media, {
+        resource_type: "image",
+        folder: "group_photos",
+      });
+      console.log(result); // For debugging
+      photoUrl = result.secure_url;
+    }
+
+    const group = await Group.create({
+      name,
+      description: description || "",
+      members: members ? [...JSON.parse(members), req.user._id] : [req.user._id],
+      admins: [req.user._id],
+      photo: photoUrl,
+    });
+
+    res.status(201).json({ message: "Group created successfully", group });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 
@@ -178,54 +200,76 @@ export const transferAdmin = async (req, res) => {
     }
 };
 
-
-// Send message to group
 export const sendMessage = async (req, res) => {
-    try {
-        const { groupId } = req.params;
-        const { text } = req.body;
+  try {
+    const { text } = req.body;
+    const { groupId } = req.params;
+    const media = req.file;
+    let media_url = "";
 
-        let imageUrl = "";
-        if (req.file) {
-            const result = await cloudinary.uploader.upload(req.file.path, {
-                folder: "message_images",
-            });
-            imageUrl = result.secure_url;
+    // 1️⃣ Upload media if exists
+    if (media) {
+      const mime = media.mimetype;
+      const mimeToTypeMap = {
+        "image/jpeg": "image",
+        "image/png": "image",
+        "image/gif": "image",
+        "video/mp4": "video",   
+        "video/quicktime": "video", 
+        "application/pdf": "file",
+        "application/msword": "file",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "file",
+      };
+        const media_type = mimeToTypeMap[mime];
+        if (!media_type) {
+          return res.status(400).json({ message: "Unsupported media type." });
         }
-
-        const message = await Message.create({
-            sender: req.user._id,
-            group: groupId,
-            text,
-            imageUrl,
+        const resource_type = media_type === "file" ? "raw" : media_type;
+        const base64Media = `data:${mime};base64,${media.buffer.toString("base64")}`;
+        const result = await cloudinary.uploader.upload(base64Media, {
+          resource_type,
+            folder: "messages",
         });
-
-        // Emit message to group room
-        req.io.to(groupId).emit("newMessage", message);
-
-        // Notify all group members except sender
-        const group = await Group.findById(groupId);
-        group.members.forEach((memberId) => {
-            if (memberId.toString() !== req.user._id.toString()) {
-                req.io.to(memberId.toString()).emit("notification", {
-                    message: `New message in group: ${group.name}`,
-                    groupId,
-                });
-            }
-        });
-
-        res.status(201).json(message);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        media_url = result.secure_url;
     }
+
+    // 2️⃣ Validate input
+    if (!groupId && !receiverId)
+      return res.status(400).json({ error: "Receiver or group is required." });
+
+    // 3️⃣ Create message (either group or DM)
+    const message = await Message.create({
+      sender: req.user._id,
+      group: groupId || null,
+      text,
+      media_url,
+      message_type: req.file ? "image" : "text",
+    });
+
+    // 4️⃣ Emit socket events
+    emitToGroup(groupId, "receive-message", {
+      _id: message._id,
+      sender: req.user._id,
+      text,
+      media_url,
+      message_type: req.file ? "image" : "text",
+      createdAt: message.createdAt,
+    });
+
+    return res.status(201).json(message);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 };
+
 
 // Get messages of a group
 export const getMessages = async (req, res) => {
     try {
         const { groupId } = req.params;
         const messages = await Message.find({ group: groupId })
-            .populate("sender", "username email")
+            .populate("sender", "username email fullname profilePic")
             .sort({ createdAt: 1 });
 
         res.json(messages);
@@ -259,6 +303,27 @@ export const updateGroup = async (req, res) => {
         });
 
         res.json(updatedGroup);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const getMyGroups = async (req, res) => {
+    try {
+        const groups = await Group.find({ members: req.user._id }).populate("admins", "username email").populate("members", "fullname profilePics");
+        res.status(200).json({ groups });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+export const getGroupById = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const group = await Group.findById(groupId)
+            .populate("admins", "username email")
+            .populate("members", "username email fullname profilePic");
+        res.status(200).json({ group });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
