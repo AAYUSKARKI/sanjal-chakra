@@ -22,10 +22,19 @@ export const signup = async (req, res) => {
         // generate otp and its expire time
         const verifyOtp = Math.floor(100000 + Math.random() * 900000);
         const verifyOtpExpireAT = Date.now() + 10 * 60 * 1000;
+
+        //create username from email
+        const username = email.split("@")[0];
+
+        //https://avatar.iran.liara.run/username?username=[firstname+lastname]
+        // create profile picture url
+        const profilePics = `https://avatar.iran.liara.run/username?username=${username}`;
         // Create the user
         const newUser = new User({
             fullname,
             email,
+            username,
+            profilePics,
             password: hashedPassword,
             verifyOtp,
             verifyOtpExpireAT
@@ -37,6 +46,7 @@ export const signup = async (req, res) => {
             res.status(201).json({
                 _id: newUser._id,
                 fullname: newUser.fullname,
+                username: username,
                 email: newUser.email,
                 password: newUser.password,
                 profilePics: newUser.profilePics
@@ -106,10 +116,11 @@ export const login = async (req, res) => {
             _id: user._id,
             email: user.email,
             fullName: user.fullname,
+            username:user.username,
             bio:user.bio,
             location:user.location,
             profilePics:user.profilePics,
-            coverPic:user.coverPic,
+            cover_photo:user.cover_photo,
             followers:user.followers,
             following:user.following,
             connections:user.connections,

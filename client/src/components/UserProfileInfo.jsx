@@ -8,7 +8,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
       <div className="flex flex-col md:flex-row items-start gap-6">
         <div className="w-32 h-32 border-4 border-white shadow-lg absolute -top-16 rounded-full">
           <img
-            src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"}
+            src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"}
             alt=""
             className="absolute rounded-full z-2"
           />
@@ -23,7 +23,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => {
                 <Verified className="w-6 h-6 text-blue-500" />
               </div>
               <p className="text-gray-600">
-                {user.fullname || user.fullName ? `@${user.fullName || user.fullname}` : "Add a username"}
+                {user.username ? `@${user.username}` : "Add a username"}
               </p>
             </div>
             {/* If user is not on others profile that means he is opening his profile so we will give edit button*/}

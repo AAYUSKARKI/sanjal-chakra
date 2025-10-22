@@ -6,7 +6,6 @@ import PostCard from '../components/PostCard';
 import moment from 'moment';
 import ProfileModal from '../components/ProfileModal';
 import useAuth from '../hooks/useAuth';
-import { getMyPosts } from '../api/api';
 import API from '../api/api';
 
 const Profile = () => {
@@ -31,8 +30,8 @@ const Profile = () => {
           setPosts(data.posts || []);
         } else {
           // 🔹 Viewing own profile
-          const data = await getMyPosts();
-          setProfileUser(user);
+          const { data } = await API.get('/users/me', { withCredentials: true });
+          setProfileUser(data.user);
           setPosts(data.posts || []);
         }
       } catch (error) {
@@ -43,7 +42,7 @@ const Profile = () => {
     };
 
     if (user) fetchProfileData();
-  }, [profileID, user]);
+  }, [profileID, user, showEdit]);
 
   if (loading || !profileUser) return <Loading />;
 

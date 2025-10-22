@@ -1,4 +1,4 @@
-import { BadgeCheck, Heart, MessageCircle, Share2, Send, Reply } from 'lucide-react'
+import { BadgeCheck, Heart, MessageCircle, Share2, Send, Reply, Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 import moment from 'moment'
 import API from '../api/api'
@@ -63,6 +63,18 @@ const PostCard = ({post}) => {
             console.error('Error reposting:', err)
         }
     }
+
+    const handlePostDelete = async () => {
+        try {
+            await API.delete(`/post/deletepost/${post._id}`, { withCredentials: true })
+            window.location.reload()
+        } catch (err) {
+            console.error('Error deleting post:', err)
+        }
+    } 
+
+    const isOwnPost = currentUser && post.userId && (currentUser._id === post.userId._id)
+    console.log(isOwnPost)
 
     const handleExternalShare = async () => {
         const shareData = {
@@ -150,6 +162,13 @@ const PostCard = ({post}) => {
                         onClick={handleExternalShare}
                     />
                 </div>
+                {isOwnPost && (
+                    <div className='ml-auto'>
+                        <Trash2Icon
+                        className='flex items-center cursor-pointer gap-1 text-red-600 hover:underline'                           
+                         onClick={handlePostDelete}/>
+                    </div>
+                )}
             </div>
 
             {/* Comments Section */}

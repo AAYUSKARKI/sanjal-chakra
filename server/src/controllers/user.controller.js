@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Notifi from "../models/notification.model.js";
 import Post from "../models/post.model.js";
+import cloudinary from "../lib/cloudinary.js";
 
 // SEND CONNECTION REQUEST
 export const sendConnectionRequest = async (req, res) => {
@@ -306,9 +307,9 @@ export const getMyProfile = async (req, res) => {
         const currentUserId = req.user._id;
 
         const user = await User.findById(currentUserId)
-            .select("-password -__v")
-            .populate("followers", "fullname profilePicture ")
-            .populate("following", "fullname profilePicture ")
+            .select("-password")
+            .populate("followers", "fullname profilePics ")
+            .populate("following", "fullname profilePics ")
             .lean();
 
         if (!user) return res.status(404).json({ message: "User not found" });
@@ -363,7 +364,7 @@ export const getUserProfile = async (req, res) => {
     }
 };
 
-//inside of bio there is profilepic,coverpic,bio,and location
+//inside of bio there is profilepic,cover_photo,bio,and location
 export const setbio = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -390,9 +391,9 @@ export const setbio = async (req, res) => {
         }
 
 
-        if (req.file?.coverPic) {
-            const uploadCover = await cloudinary.uploader.upload(req.file.coverPic);
-            user.coverPic = uploadCover.secure_url;
+        if (req.file?.cover_photo) {
+            const uploadCover = await cloudinary.uploader.upload(req.file.cover_photo);
+            user.cover_photo = uploadCover.secure_url;
         }
 
         await user.save();
@@ -437,3 +438,91 @@ export const getAllUsers = async (req, res) => {
 };
 
 
+// Utility function to upload a single file to Cloudinary
+const uploadToCloudinary = async (file, folder) => {
+    if (!file) return null;
+    
+    try {
+        const base64Image = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+        const result = await cloudinary.uploader.upload(base64Image, {
+            resource_type: 'image',
+            folder,
+        });
+        return result.secure_url;
+    } catch (error) {
+        console.error(`Cloudinary upload error for ${folder}:`, error);
+        throw new Error(`Failed to upload ${folder} image`);
+    }
+};
+
+export const editProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { fullName, username, bio, location } = req.body;
+        console.log(req.body,'need to update like this')
+        // Check if any updates are provided
+        if (!fullName && !username && !bio && !location && !req.files) {
+            return res.status(400).json({ message: 'No updates provided' });
+        }
+
+        // Find user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update fields only if provided
+        if (fullName) user.fullname = fullName;
+        if (username) user.username = username;
+        if (bio) user.bio = bio;
+        if (location) user.location = location;
+
+        // Handle file uploads
+        if (req.files) {
+            if (req.files.profilePics) {
+                const profilePicFile = Array.isArray(req.files.profilePics) 
+                    ? req.files.profilePics[0] 
+                    : req.files.profilePics;
+                user.profilePics = await uploadToCloudinary(profilePicFile, 'profiles');
+            }
+            if (req.files.cover_photo) {
+                const coverPhotoFile = Array.isArray(req.files.cover_photo) 
+                    ? req.files.cover_photo[0] 
+                    : req.files.cover_photo;
+                user.cover_photo = await uploadToCloudinary(coverPhotoFile, 'profiles');
+            }
+        }
+
+        // Save updated user
+        await user.save();
+
+        // Fetch updated user without password
+        const updatedUser = await User.findById(userId).select('-password');
+        console.log('updated like this',updatedUser)
+        return res.status(200).json({ 
+            message: 'Profile updated successfully', 
+            user: updatedUser 
+        });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        return res.status(500).json({ 
+            message: 'Internal Server Error', 
+            error: error.message 
+        });
+    }
+};
+         
+export const getOwnProfile = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const user = await User.findById(userId).select("-password -__v");
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json(user);
+    }
+    catch (error) {
+        console.log("Error:", error);
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};

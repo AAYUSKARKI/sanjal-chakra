@@ -1,22 +1,64 @@
-import React, { useState } from "react";
-import { dummyUserData } from "../assets/assets";
+import { useState,useEffect } from "react";
 import { Pencil } from "lucide-react";
-
+import API from "../api/api";
 const ProfileModal = ( { setShowEdit }) => {
-  const user = dummyUserData;
-
+  const [user, setUser] = useState({});
   const [editForm, setEditForm] = useState({
     username: user.username,
     bio: user.bio,
     location: user.location,
-    profile_picture: null,
+    profilePics: null,
     cover_photo: null,
-    full_name: user.full_name,
+    fullName: user.fullname,
   });
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append("username", editForm.username);
+      formData.append("bio", editForm.bio);
+      formData.append("location", editForm.location);
+      formData.append("fullName", editForm.fullName);
+      if (editForm.profilePics) {
+        formData.append("profilePics", editForm.profilePics);
+      }
+      if (editForm.cover_photo) {
+        formData.append("cover_photo", editForm.cover_photo);
+      }
+      const res = await API.put(`/users/update/${user._id}/editprofile`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        withCredentials: true,
+      });
+      console.log(res.data);
+      setShowEdit(false);
+    } catch (error) {
+      console.log(error);
+    }
   };
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const { data } = await API.get('/users/profile', { withCredentials: true });
+        setUser(data);
+        setEditForm({
+          username: data.username,
+          bio: data.bio,
+          location: data.location,
+          profilePics: null,
+          cover_photo: null,
+          fullName: data.fullname,
+        });
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   return (
     <div className="fixed top-0 bottom-0 left-0 right-0 z-110 h-screen overflow-y-scroll bg-black/50">
@@ -43,16 +85,16 @@ const ProfileModal = ( { setShowEdit }) => {
                   onChange={(e) =>
                     setEditForm({
                       ...editForm,
-                      profile_picture: e.target.files[0],
+                      profilePics: e.target.files[0],
                     })
                   }
                 />
                 <div className="group/profile relative">
                   <img
                     src={
-                      editForm.profile_picture
-                        ? URL.createObjectURL(editForm.profile_picture)
-                        : user.profile_picture
+                      editForm.profilePics
+                        ? URL.createObjectURL(editForm.profilePics)
+                        : user.profilePics
                     }
                     alt=""
                     className="w-24 h-24 rounded-full object-cover mt-2"
@@ -77,7 +119,7 @@ const ProfileModal = ( { setShowEdit }) => {
                   onChange={(e) =>setEditForm({...editForm, cover_photo: e.target.files[0], })}/>
                   <div className="group/cover relative">
                     <img src={editForm.cover_photo ? URL.createObjectURL(editForm.cover_photo) : user.cover_photo } alt="" className="w-80 h-40 rounded-lg bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 object-cover mt-2" />
-                       <div className="absolute hidden group-hover/cover:flex top-0 left-0 right-0 bottom-0 bg-black/20 round-lg items-center justify-center">
+                       <div className="absolute hidden group-hover/cover:flex top-0 left-0 right-0 bottom-0 bg-black/20 rounded-lg items-center justify-center">
                         <Pencil className='w-5 h-5 text-white'/>
                        </div>
                   </div>
@@ -88,8 +130,8 @@ const ProfileModal = ( { setShowEdit }) => {
                       Name
                     </label>
                     <input type="text" className="w-full p-3 border border-gray-200 rounded-lg "
-                    placeholder="Please enter your full name" onChange={(e)=>setEditForm({...editForm, full_name: e.target.value})}
-                     value={editForm.full_name}/>
+                    placeholder="Please enter your full name" onChange={(e)=>setEditForm({...editForm, fullName: e.target.value})}
+                     value={editForm.fullName}/>
                   </div>
                    <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

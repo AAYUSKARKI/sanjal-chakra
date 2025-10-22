@@ -45,7 +45,7 @@ const userSchema = mongoose.Schema(
       type: String,
       default:''
     },
-    coverPic:{
+    cover_photo:{
       type:String,
       default:'',
     },
