@@ -98,14 +98,14 @@ export const getAllPost = async (req, res) => {
     try {
         const posts = await Post.find({})
             .sort({ createdAt: -1 })
-            .populate('userId', 'fullname profilepic')
+            .populate('userId', 'fullname username profilePics')
             .populate({
                 path: 'comments.userId',
-                select: 'fullname profile_picture' // Select only the fields you need
+                select: 'fullname username profilePics' // Select only the fields you need
             })
             .populate({
                 path: 'comments.replies.userId',
-                select: 'fullname profile_picture' // Select only the fields you need
+                select: 'fullname username profilePics' // Select only the fields you need
             });
         // console.log(posts)
 
@@ -124,7 +124,7 @@ export const getAllPost = async (req, res) => {
 export const getMyPosts = async (req, res) => {
     try {
         const currentUserId = req.user._id;
-        const posts = await Post.find({ userId: currentUserId }).populate("userId", "fullname profilePics").sort({ createdAt: -1 });
+        const posts = await Post.find({ userId: currentUserId }).populate("userId", "fullname username profilePics").sort({ createdAt: -1 });
         res.status(200).json({ posts });
     } catch (err) {
         console.error("Get my posts error:", err);

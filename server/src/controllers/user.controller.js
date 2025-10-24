@@ -308,13 +308,13 @@ export const getMyProfile = async (req, res) => {
 
         const user = await User.findById(currentUserId)
             .select("-password")
-            .populate("followers", "fullname profilePics ")
-            .populate("following", "fullname profilePics ")
+            .populate("followers", "fullname username profilePics ")
+            .populate("following", "fullname username profilePics ")
             .lean();
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        const posts = await Post.find({ userId: currentUserId }).sort({ createdAt: -1 });
+        const posts = await Post.find({ userId: currentUserId }).populate("userId", "fullname username profilePics").sort({ createdAt: -1 });
 
         res.status(200).json({ user, posts });
     } catch (error) {
@@ -330,8 +330,8 @@ export const getUserProfile = async (req, res) => {
 
         const user = await User.findById(userId)
             .select("-email -password -__v -createAT -updatedAt")
-            .populate("followers", "fullname profilePics")
-            .populate("following", "fullname profilePics")
+            .populate("followers", "fullname username profilePics")
+            .populate("following", "fullname username profilePics")
             .lean();
 
         if (!user) return res.status(404).json({ message: "User not found" });
@@ -342,8 +342,8 @@ export const getUserProfile = async (req, res) => {
         // Calculate mutual followers
         const currentUser = await User.findById(currentUserId)
             .select("following followers")
-            .populate("following", "fullname profilePics")
-            .populate("followers", "fullname profilePics")
+            .populate("following", "fullname username profilePics")
+            .populate("followers", "fullname username profilePics")
             .lean();
 
         // Mutual followers = users that both follow each other
@@ -351,7 +351,7 @@ export const getUserProfile = async (req, res) => {
             currentUser.following.some(f => String(f._id) === String(follower._id))
         );
 
-        const posts = await Post.find({ userId }).sort({ createdAt: -1 }).populate("userId", "fullname profilePics");
+        const posts = await Post.find({ userId }).sort({ createdAt: -1 }).populate("userId", "fullname username profilePics");
 
         res.status(200).json({
             user,

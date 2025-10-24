@@ -2,10 +2,26 @@ import { Link, useNavigate } from 'react-router-dom';
 import { CirclePlus, LogOut, X } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import MenuItems from './MenuItems';
+import API from '../api/api';
+import { useEffect, useState } from 'react';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const getProfile = async () => {
+      try {
+        const { data } = await API.get('/users/profile', { withCredentials: true });
+        setProfile(data);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+
+    getProfile();
+  }, []);
 
   return (
     <>
@@ -67,7 +83,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           >
             <img
               src={
-                user?.profile_image ||
+                profile?.profilePics || user?.profile_image ||
                 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'
               }
               alt="User"
@@ -75,9 +91,9 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             />
             <div>
               <h1 className="text-sm font-semibold text-gray-800 group-hover:text-indigo-600 transition">
-                {user?.fullName || 'User'}
+                {profile?.fullname || user?.fullName}
               </h1>
-              <p className="text-xs text-gray-500">@{user?.fullName || 'username'}</p>
+              <p className="text-xs text-gray-500">@{profile?.username || user?.fullName || 'username'}</p>
             </div>
           </div>
           <button

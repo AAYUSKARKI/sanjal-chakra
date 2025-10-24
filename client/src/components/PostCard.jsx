@@ -73,7 +73,8 @@ const PostCard = ({post}) => {
         }
     } 
 
-    const isOwnPost = currentUser && post.userId && (currentUser._id === post.userId._id)
+    const isOwnPost = currentUser && post.userId && (currentUser._id === post.userId._id || currentUser._id === post.userId)
+    console.log(post.userId,currentUser._id)
     console.log(isOwnPost)
 
     const handleExternalShare = async () => {
@@ -104,7 +105,7 @@ const PostCard = ({post}) => {
             {/* User Info */}
             <div onClick={() => navigate('/profile/' + post.userId._id)} className='inline-flex items-center gap-3 cursor-pointer'>
                 <img 
-                    src={post.userId?.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
+                    src={post.userId?.profilePics|| "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
                     alt="" 
                     className='w-10 h-10 rounded-full shadow'
                 />
@@ -114,7 +115,7 @@ const PostCard = ({post}) => {
                         <BadgeCheck className='w-4 h-4 text-blue-500' />
                     </div>
                     <div className='text-gray-500 text-sm'>
-                        @{post.userId?.fullname || "Mr.Nepal"} • {moment(post.createdAt).fromNow()}
+                        @{post.userId?.username || "Mr.Nepal"} • {moment(post.createdAt).fromNow()}
                     </div>
                 </div>
             </div>

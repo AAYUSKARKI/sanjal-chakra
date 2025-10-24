@@ -63,7 +63,7 @@ export const createStory = async (req, res) => {
 export const getStory = async (req, res) => {
 
     const stories = await Story.find()
-        .populate("user", "fullname profilePic")
+        .populate("user", "fullname username profilePics")
         .sort({ createdAt: -1 });
     res.status(200).json({ success: true, stories });
     try {
@@ -71,5 +71,15 @@ export const getStory = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: "Internal server error" });
 
+    }
+}
+
+export const deleteStory = async (req, res) => {
+    const { storyId } = req.params;
+    try {
+        await Story.findByIdAndDelete(storyId);
+        res.status(200).json({ success: true, message: "Story deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 }

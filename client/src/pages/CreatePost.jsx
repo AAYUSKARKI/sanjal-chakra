@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Image, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import  { createPost } from '../api/api.js'
 import useAuth from '../hooks/useAuth.js'
 import { useNavigate } from 'react-router-dom'
+import API from '../api/api.js'
 
 const CreatePost = () => {
 
@@ -11,7 +12,20 @@ const CreatePost = () => {
   const [image, setImages] = useState([])
   const [loading, setLoading] = useState(false)
   const {user} = useAuth();
+  const [profile, setProfile] = useState(null);
   const navigate = useNavigate()
+   useEffect(() => {
+      const getProfile = async () => {
+        try {
+          const { data } = await API.get('/users/profile', { withCredentials: true });
+          setProfile(data);
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+        }
+      };
+  
+      getProfile();
+    }, []);
    
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,10 +75,10 @@ const CreatePost = () => {
         <div className='max-w-xl bg-white p-4 sm:pb-3 rounded-xl shadow-md space-y-4'>
               {/* Header */}
               <div className='flex items-center gap-3'>
-                <img src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt=""  className='w-12 h-12 rounded-full shadow'/>
+                <img src={profile?.profilePics || user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt=""  className='w-12 h-12 rounded-full shadow'/>
                 <div>
-                  <h2 className='font-semibold'>{user.fullName}</h2>
-                  <p className='text-sm text-gray-500'>@{user.fullName}</p>
+                  <h2 className='font-semibold'>{profile?.fullname || user.fullName}</h2>
+                  <p className='text-sm text-gray-500'>@{profile?.username || user.fullName}</p>
                 </div>
               </div>
 
