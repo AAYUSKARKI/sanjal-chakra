@@ -183,7 +183,7 @@ const PostCard = ({post}) => {
                             {comments.map((comment, index) => (
                                 <div key={index} className='flex items-start gap-2'>
                                     <img 
-                                        src={comment.userId?.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
+                                        src={comment.userId?.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
                                         alt="" 
                                         className='w-8 h-8 rounded-full shadow'
                                     />
@@ -207,7 +207,7 @@ const PostCard = ({post}) => {
                                                 {comment.replies.map((reply, rIndex) => (
                                                     <div key={rIndex} className='flex items-start gap-2'>
                                                         <img 
-                                                            src={reply.userId?.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
+                                                            src={reply.userId?.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
                                                             alt="" 
                                                             className='w-6 h-6 rounded-full shadow'
                                                         />

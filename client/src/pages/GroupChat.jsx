@@ -241,7 +241,7 @@ const GroupDetailsModal = ({ group, onClose, user }) => (
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200"
               >
                 <img
-                  src={member.profile_picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'}
+                  src={member.profilePics || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'}
                   alt={member.fullname}
                   className="size-10 rounded-full"
                 />

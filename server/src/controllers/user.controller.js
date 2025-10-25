@@ -53,7 +53,7 @@ export const sendConnectionRequest = async (req, res) => {
 export const getPendingConnectionRequests = async (req, res) => {
   try {
     const {userId} = req.params; // get user ID from URL
-    const user = await User.findById(userId).populate("connectionRequests", "username fullname profilepiecture bio");
+    const user = await User.findById(userId).populate("connectionRequests", "username fullname profilePics bio");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -180,7 +180,7 @@ export const removeConnection = async (req, res) => {
 export const getConnections = async (req, res) => {
     try {
         const {userId }= req.params; // get user ID from URL
-        const user = await User.findById(userId).populate("connections", "username fullname profilepiecture bio");
+        const user = await User.findById(userId).populate("connections", "username fullname profilePics bio");
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -264,7 +264,7 @@ export const unfollowUser = async (req, res) => {
 export const getFollowers = async (req, res) => {
     try {
         const { userId } = req.params;
-        const user = await User.findById(userId).populate("followers", "username fullname profilepiecture bio");
+        const user = await User.findById(userId).populate("followers", "username fullname profilePics bio");
         if (!user) return res.status(404).json({ message: "User not found" });
 
         res.status(200).json(user.followers);
@@ -277,7 +277,7 @@ export const getFollowers = async (req, res) => {
 export const getFollowing = async (req, res) => {
     try {
         const { userId } = req.params;
-        const user = await User.findById(userId).populate("following", "username fullname profilepiecture bio");
+        const user = await User.findById(userId).populate("following", "username fullname profilePics bio");
         if (!user) return res.status(404).json({ message: "User not found" });
 
         res.status(200).json(user.following);

@@ -22,7 +22,7 @@ const RecentMessages = ({ currentUserId }) => {
           from_user_id: {
             _id: fromUser._id,
             full_name: fromUser.fullname,
-            profile_picture: fromUser.profile_picture || DEFAULT_PROFILE_PICTURE,
+            profile_picture: fromUser.profilePics || DEFAULT_PROFILE_PICTURE,
           },
           text: message.text,
           seen: message.seen,

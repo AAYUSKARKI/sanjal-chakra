@@ -105,8 +105,8 @@ export const fetchLatestMessage = async (req, res) => {
         })
         .sort({ createdAt: -1 })
         .limit(3)
-        .populate('sender', 'fullname profile_picture')
-        .populate('receiver', 'fullname profile_picture');
+        .populate('sender', 'fullname profilePics')
+        .populate('receiver', 'fullname profilePics');
 
         return res.status(200).json({ messages });
     } catch (error) {

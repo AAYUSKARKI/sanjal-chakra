@@ -144,7 +144,7 @@ const Messages = () => {
               className='max-w-xl flex items-center gap-5 p-5 bg-white shadow-lg rounded-xl hover:shadow-xl transition-all duration-200 transform hover:scale-[1.01]'
             >
               <img 
-                src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
+                src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
                 alt="" 
                 className='rounded-full size-14 object-cover' 
               />
@@ -233,7 +233,7 @@ const Messages = () => {
                           className='h-5 w-5 text-blue-600 rounded focus:ring-blue-500'
                         />
                         <img 
-                          src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
+                          src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
                           alt="" 
                           className='rounded-full size-10 object-cover' 
                         />

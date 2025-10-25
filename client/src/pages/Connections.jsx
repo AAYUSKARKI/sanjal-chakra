@@ -122,7 +122,7 @@ const dataArray = [
               <div className='flex flex-wrap gap-6 mt-6'>
                    {dataArray.find((item)=>item.label === currentTab).value.map((user)=>(
                     <div key={Math.random() } className='w-full max-w-88 flex gap-5 p-6 bg-white shadow rounded-md'>
-                      <img src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className="rounded-full w-12 h-12 shadow-md mx-auto"/>
+                      <img src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className="rounded-full w-12 h-12 shadow-md mx-auto"/>
                       <div className='flex-1'>
                         <p className='font-medium text-slate-700'>{user.fullname}</p>
                         <p className='text-slate-500'>@{user.fullname}</p>

@@ -3,11 +3,11 @@ import { socket } from '../utils/socket';
 
 const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => {
   const localVideoRef = useRef(null);
-  const remoteVideoRefs = useRef({}); // Object to store refs for remote videos by user ID
-  const peerConnectionsRef = useRef({}); // Object to store peer connections by user ID
-  const candidatesRef = useRef({}); // Object to store ICE candidates by user ID
+  const remoteVideoRefs = useRef({});
+  const peerConnectionsRef = useRef({});
+  const candidatesRef = useRef({});
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStreams, setRemoteStreams] = useState({}); // Object to store remote streams by user ID
+  const [remoteStreams, setRemoteStreams] = useState({});
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState('');
   const [isMicOn, setIsMicOn] = useState(true);
@@ -16,7 +16,23 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
   const [incomingCall, setIncomingCall] = useState(null);
   const [isCallEnded, setIsCallEnded] = useState(false);
   const [callInitiator, setCallInitiator] = useState(false);
-  const remoteStreamIdsRef = useRef({}); // Track remote stream IDs to prevent duplicates
+  const remoteStreamIdsRef = useRef({});
+
+  // Initialize remoteVideoRefs only when necessary
+  useEffect(() => {
+    const newRefs = {};
+    if (isGroupCall) {
+      groupMembers
+        .filter(member => member._id !== userId)
+        .forEach(member => {
+          newRefs[member._id] = remoteVideoRefs.current[member._id] || { current: null };
+        });
+    } else if (targetId) {
+      newRefs[targetId] = remoteVideoRefs.current[targetId] || { current: null };
+    }
+    remoteVideoRefs.current = newRefs;
+    console.log('Initialized remoteVideoRefs:', remoteVideoRefs.current);
+  }, [userId, targetId, isGroupCall, groupMembers.map(m => m._id).join(',')]);
 
   const createPeerConnection = (remoteUserId) => {
     const pc = new RTCPeerConnection({
@@ -107,6 +123,8 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
+      }).catch(error => {
+        throw new Error('Permission denied or device unavailable');
       });
       stream.getVideoTracks().forEach(track => {
         track.enabled = true;
@@ -114,28 +132,21 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       });
       setLocalStream(stream);
       console.log('Local stream obtained:', stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
-      } else {
-        console.warn('localVideoRef.current is not available');
-      }
 
       setIsVideoCallActive(true);
       if (isGroupCall) {
-        // Initialize peer connections for all group members (except self)
         peerConnectionsRef.current = {};
         groupMembers
           .filter(member => member._id !== userId)
           .forEach(member => {
-            peerConnectionsRef.current[member._id] = createPeerConnection(member._id);
-            candidatesRef.current[member._id] = [];
+            const remoteUserId = member._id;
+            peerConnectionsRef.current[remoteUserId] = createPeerConnection(remoteUserId);
+            candidatesRef.current[remoteUserId] = [];
             stream.getTracks().forEach(track => {
-              peerConnectionsRef.current[member._id].addTrack(track, stream);
+              peerConnectionsRef.current[remoteUserId].addTrack(track, stream);
             });
           });
 
-        // Create and send offers to all group members
         await Promise.all(
           Object.keys(peerConnectionsRef.current).map(async (remoteUserId) => {
             const pc = peerConnectionsRef.current[remoteUserId];
@@ -150,7 +161,6 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
         );
         setCallStatus('Connecting to group...');
       } else {
-        // One-on-one call
         peerConnectionsRef.current[targetId] = createPeerConnection(targetId);
         candidatesRef.current[targetId] = [];
         stream.getTracks().forEach(track => {
@@ -163,7 +173,9 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       }
     } catch (error) {
       console.error('Error starting video call:', error);
-      setCallStatus('Failed to start call. Check camera/microphone permissions and try again.');
+      setCallStatus(error.message === 'Permission denied or device unavailable'
+        ? 'Camera or microphone access denied. Please grant permissions and try again.'
+        : 'Failed to start call. Check camera/microphone permissions and try again.');
       endVideoCall();
     }
   };
@@ -178,6 +190,8 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
+      }).catch(error => {
+        throw new Error('Permission denied or device unavailable');
       });
       stream.getVideoTracks().forEach(track => {
         track.enabled = true;
@@ -185,12 +199,6 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       });
       setLocalStream(stream);
       console.log('Local stream obtained:', stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
-      } else {
-        console.warn('localVideoRef.current is not available');
-      }
 
       setIsVideoCallActive(true);
       peerConnectionsRef.current[from] = createPeerConnection(from);
@@ -208,7 +216,9 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       setCallStatus('Connected');
     } catch (error) {
       console.error('Error accepting call:', error);
-      setCallStatus('Failed to accept call. Check camera/microphone permissions.');
+      setCallStatus(error.message === 'Permission denied or device unavailable'
+        ? 'Camera or microphone access denied. Please grant permissions and try again.'
+        : 'Failed to accept call. Check camera/microphone permissions.');
       setIncomingCall(null);
       endVideoCall();
     }
@@ -241,12 +251,6 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       pc.close();
     });
     peerConnectionsRef.current = {};
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = null;
-    }
-    Object.values(remoteVideoRefs.current).forEach(ref => {
-      if (ref.current) ref.current.srcObject = null;
-    });
     setLocalStream(null);
     setRemoteStreams({});
     setIsVideoCallActive(false);
@@ -371,30 +375,6 @@ const useWebRTC = (userId, targetId, isGroupCall = false, groupMembers = []) => 
       };
     }
   }, [userId, targetId, isGroupCall, groupMembers]);
-
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-      localVideoRef.current.play().catch(e => console.error('Failed to play local video:', e));
-      console.log('useEffect: Assigned localStream to localVideoRef:', localStream);
-    }
-  }, [localStream]);
-
-  useEffect(() => {
-    Object.entries(remoteStreams).forEach(([userId, stream]) => {
-      if (remoteVideoRefs.current[userId]?.current) {
-        remoteVideoRefs.current[userId].current.srcObject = stream;
-        const playVideo = () => {
-          remoteVideoRefs.current[userId].current.play().catch(e => {
-            console.error(`Failed to play remote video for ${userId}:`, e);
-            setTimeout(playVideo, 500);
-          });
-        };
-        playVideo();
-        console.log(`useEffect: Assigned remoteStream to remoteVideoRef for ${userId}:`, stream);
-      }
-    });
-  }, [remoteStreams]);
 
   return {
     localVideoRef,

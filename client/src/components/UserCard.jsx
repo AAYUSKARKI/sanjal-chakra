@@ -17,7 +17,7 @@ const UserCard = ({user}) => {
   return (
     <div key={user._id} className='p-4 pt-6 flex flex-col justify-between w-72 shadow border border-gray-200 rounded-md'>
       <div className='text-center'>
-        <img src={user.profile_picture || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='rounded-full w-16 shadow-md mx-auto' />
+        <img src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} alt="" className='rounded-full w-16 shadow-md mx-auto' />
         <p className='mt-4 font-semibold'>{user.fullname}</p>
         {user.username && <p className='text-gray-500 font-light'>@{user.username}</p>}
         {user.bio && <p className='text-gray-600 mt-2 text-center text-sm px-4'>{user.bio}</p>}
