@@ -8,7 +8,7 @@ const router = express.Router();
 router.post("/groups", protectRoute, upload.single("file"), createGroup);
 router.patch("/groups/:groupId", protectRoute, upload.single("photo"), updateGroup);
 router.get("/groups/:groupId/messages", protectRoute, getMessages);
-router.post("/groups/:groupId/messages", protectRoute, upload.single("file"), sendMessage);
+router.post("/groups/:groupId/messages", protectRoute, upload.single("image"), sendMessage);
 router.get("/groups/user/:userId", protectRoute, getMyGroups); 
 router.post("/groups/:groupId/leave", protectRoute, leaveGroup);
 router.get("/groups/groupbyid/:groupId", protectRoute, getGroupById);
