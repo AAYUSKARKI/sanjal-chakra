@@ -57,7 +57,7 @@ export const sendMessage = async (req, res) => {
             to: receiver,
             from: sender,
             type: "message",
-            message: `${sender} sent you a message`,
+            message: `${req.user.fullname} sent you a message`,
         });
 
         // Respond with message data

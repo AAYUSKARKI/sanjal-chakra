@@ -15,7 +15,7 @@ import useAuth from './hooks/useAuth';
 import Layout from './pages/Layout';
 import { Toaster } from 'react-hot-toast';
 import GroupChat from './pages/GroupChat';
-
+import Notifications from './pages/Notification';
 const App = () => {
   const { user } = useAuth();
 
@@ -38,6 +38,7 @@ const App = () => {
           <Route path="messages/group/:groupId" element={<GroupChat />} />
           <Route path="connections" element={<Connections />} />
           <Route path="discover" element={<Discover />} />
+          <Route path="notifications" element={<Notifications />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileID" element={<Profile />} />
           <Route path="create-post" element={<CreatePost />} />

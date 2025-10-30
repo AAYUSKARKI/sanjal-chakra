@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 
-let io;
+export let io;
 const onlineUsers = new Map();
 const activeCalls = new Set();
 

@@ -1,6 +1,6 @@
 
 import Notifi from "../models/notification.model.js";
-
+import { emitToUser } from "../sockets/socket.io.js";
 // Generic function to create and emit notification
 export const createNotification = async ({
     to,
@@ -8,8 +8,6 @@ export const createNotification = async ({
     type,
     message,    
     relatedPost = null,
-    io = null,
-    onlineUsers = null,
 }) => {
     try {
         // console.log("Creating notification:", { to, from, type, message, relatedPost });
@@ -20,14 +18,8 @@ export const createNotification = async ({
             message,
             relatedPost,
         });
-
-        // Emit real-time notification if receiver is online
-        if (io && onlineUsers) {
-            const reciverSocketId = onlineUsers.get(to.toString());
-            if (reciverSocketId) {
-                io.to(reciverSocketId).emit("receive-notification", notifi);
-            }
-        }
+        // Emit notification in real-time
+        emitToUser(to, "receive-notification", notifi);
 
         return notifi;
     } catch (error) {
