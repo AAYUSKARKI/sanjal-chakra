@@ -523,7 +523,7 @@ const GroupChat = () => {
   // Leave group
   const leaveGroup = async () => {
     try {
-      await API.post(`/group/groups/leave/${groupId}`, {}, { withCredentials: true });
+      await API.post(`/group/groups/${groupId}/leave`, {}, { withCredentials: true });
       socket.emit('leave-group', groupId);
       // Redirect to another page (e.g., groups list) or clear group state
       window.location.href = '/groups'; // Adjust as needed

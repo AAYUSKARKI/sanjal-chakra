@@ -174,14 +174,6 @@ export const leaveGroup = async (req, res) => {
         group.members = group.members.filter((m) => String(m) !== String(req.user._id));
         await group.save();
 
-        // Notify all members about member leaving
-        group.members.forEach((id) => {
-            req.io.to(id.toString()).emit("groupNotification", {
-                message: `${req.user.username} has left the group ${group.name}`,
-                groupId,
-            });
-        });
-
         res.status(200).json({ message: "You have left the group", group });
     } catch (err) {
         res.status(500).json({ error: err.message });
