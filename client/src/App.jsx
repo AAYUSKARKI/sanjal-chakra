@@ -16,6 +16,7 @@ import Layout from './pages/Layout';
 import { Toaster } from 'react-hot-toast';
 import GroupChat from './pages/GroupChat';
 import Notifications from './pages/Notification';
+import PostDetail from './pages/PostDetail';
 const App = () => {
   const { user } = useAuth();
 
@@ -42,6 +43,7 @@ const App = () => {
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileID" element={<Profile />} />
           <Route path="create-post" element={<CreatePost />} />
+          <Route path="post/:postId" element={<PostDetail />} />
         </Route>
 
         {/* Catch-all route */}

@@ -13,6 +13,7 @@ import clsx from "clsx";
 import useAuth from "../hooks/useAuth";
 import API from "../api/api";
 import { socket } from "../utils/socket";
+import { useNavigate } from "react-router-dom";
 
 const iconMap = {
   follow: <UserPlus className="w-5 h-5 text-blue-500" />,
@@ -27,6 +28,11 @@ const Notifications = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const userId = user?._id;
+  const navigate = useNavigate();
+
+  const handleNavigate = (link) => {
+    navigate(link);
+  }
 
   // ✅ Fetch existing notifications
   const fetchNotifications = async () => {
@@ -128,9 +134,10 @@ const Notifications = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                   className={clsx(
-                    "relative flex items-start gap-4 p-5 border-b border-slate-100 hover:bg-slate-50 transition-all duration-200",
+                    "relative cursor-pointer flex items-start gap-4 p-5 border-b border-slate-100 hover:bg-slate-50 transition-all duration-200",
                     !noti.read && "bg-blue-50/40"
                   )}
+                  onClick={() => handleNavigate(noti.link)}
                 >
                   {/* New Badge Pulse */}
                   {!noti.read && (

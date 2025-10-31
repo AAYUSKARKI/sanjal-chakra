@@ -20,6 +20,10 @@ const notifiSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        link: {
+            type: String,
+            default: 'http://localhost:5173'
+        },
         read: {
             type: Boolean,
             default: false,

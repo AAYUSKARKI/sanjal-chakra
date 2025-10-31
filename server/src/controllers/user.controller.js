@@ -314,7 +314,7 @@ export const getMyProfile = async (req, res) => {
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        const posts = await Post.find({ userId: currentUserId }).populate("userId", "fullname username profilePics").sort({ createdAt: -1 });
+        const posts = await Post.find({ userId: currentUserId }).populate("userId", "fullname username profilePics").populate("comments.userId", "fullname username profilePics").populate("comments.replies.userId", "fullname username profilePics").sort({ createdAt: -1 });
 
         res.status(200).json({ user, posts });
     } catch (error) {

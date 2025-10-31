@@ -8,6 +8,7 @@ export const createNotification = async ({
     type,
     message,    
     relatedPost = null,
+    link = 'http://localhost:5173'
 }) => {
     try {
         // console.log("Creating notification:", { to, from, type, message, relatedPost });
@@ -17,6 +18,7 @@ export const createNotification = async ({
             type,
             message,
             relatedPost,
+            link
         });
         // Emit notification in real-time
         emitToUser(to, "receive-notification", notifi);

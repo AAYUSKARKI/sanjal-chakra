@@ -120,6 +120,29 @@ export const getAllPost = async (req, res) => {
     }
 };
 
+export const getSinglePost = async (req, res) => {
+    try {
+        const {postId} = req.params;
+        const post = await Post.findById(postId)
+            .sort({ createdAt: -1 })
+            .populate('userId', 'fullname username profilePics')
+            .populate({
+                path: 'comments.userId',
+                select: 'fullname username profilePics' // Select only the fields you need
+            })
+            .populate({
+                path: 'comments.replies.userId',
+                select: 'fullname username profilePics' // Select only the fields you need
+            });
+
+        res.status(200).json({ success: true,post });
+
+    } catch (err) {
+        console.error("Get posts error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // ------------------------- GET MY POSTS ------------------------- 
 export const getMyPosts = async (req, res) => {
     try {
@@ -214,14 +237,14 @@ export const likePost = async (req, res) => {
                 from: userId,
                 type: "like",
                 relatedPost: post._id,
+                link: `http://localhost:5173/posts/${post._id}`,
             });
-
             if (!exists) {
                 await createNotification({
                     to: post.userId,
                     from: userId,
                     type: "like",
-                    message: `${req.user.name} liked your post`,
+                    message: `${req.user.fullname} liked your post`,
                     relatedPost: post._id,
                     io,
                     onlineUsers,
@@ -253,7 +276,7 @@ export const postComment = async (req, res) => {
         const updatedPost = await Post.findById(req.params.postId)
             .populate({
                 path: 'comments.userId',
-                select: 'fullname profile_picture' // Select only the fields you need
+                select: 'fullname username profilePics' // Select only the fields you need
             });
 
         // Get the newly added comment (last one in the comments array)
@@ -273,10 +296,9 @@ export const postComment = async (req, res) => {
                     to: post.userId,
                     from: req.user._id,
                     type: "comment",
-                    message: `${req.user.name} commented on your post`,
+                    message: `${req.user.fullname} commented on your post`,
                     relatedPost: post._id,
-                    io,
-                    onlineUsers,
+                    link: `http://localhost:5173/posts/${post._id}`,
                 });
             }
         }
@@ -288,7 +310,7 @@ export const postComment = async (req, res) => {
                 userId: {
                     _id: newComment.userId._id,
                     fullname: newComment.userId.fullname,
-                    profile_picture: newComment.userId.profile_picture
+                    profile_picture: newComment.userId.profilePics
                 }
             },
             commentsCount: updatedPost.comments.length
