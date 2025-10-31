@@ -97,37 +97,62 @@ export const inviteMembers = async (req, res) =>  {
 
 //remove members from group 
 export const removeMember = async (req, res) => {
-    try {
-        const { groupId, memberId } = req.params;
-        const group = await Group.findById(groupId);
+  try {
+    const { memberId } = req.body;
+    const { groupId } = req.params;
 
-        if (!group) return res.status(404).json({ message: "Group not found" });
+    const group = await Group.findById(groupId)
+      .populate("members", "username email fullname profilePics")
+      .populate("admins", "username email fullname profilePics");
 
-        // Only admin can remove members
-        if (String(group.admins) !== String(req.user._id)) {
-            return res.status(403).json({ message: "Only admin can remove members" });
-        }
-
-        // Admin cannot remove himself here
-        if (String(group.admins) === String(memberId)) {
-            return res.status(403).json({ message: "Admin cannot remove themselves" });
-        }
-
-        group.members = group.members.filter((m) => String(m) !== String(memberId));
-        await group.save();
-
-        //Notify all members about member removal
-        group.members.forEach((id) => {
-            req.io.to(id.toString()).emit("groupNotification", {
-                message: `${req.user.username} removed a member from ${group.name}`,
-                groupId,
-            });
-        });
-
-        res.status(200).json({ message: "Member removed successfully", group });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
     }
+
+    const userId = req.user._id; // assuming req.user is set by auth middleware
+
+    // Check if requester is an admin
+    const isAdmin = group.admins.some(admin => String(admin._id) === String(userId));
+    if (!isAdmin) {
+      return res.status(403).json({ message: "Only admin can remove members" });
+    }
+
+    // Prevent admin from removing themselves
+    const isAdminRemovingSelf = group.admins.some(admin => String(admin._id) === String(memberId));
+    if (isAdminRemovingSelf) {
+      return res.status(403).json({ message: "Admin cannot remove themselves" });
+    }
+
+    // Prevent removing other admins (optional, recommended)
+    const memberToRemove = group.members.find(m => String(m._id) === String(memberId));
+    if (!memberToRemove) {
+      return res.status(404).json({ message: "Member not found in group" });
+    }
+
+    const isTargetAnAdmin = group.admins.some(admin => String(admin._id) === String(memberId));
+    if (isTargetAnAdmin) {
+      return res.status(403).json({ message: "Cannot remove another admin" });
+    }
+
+    // Remove member
+    group.members = group.members.filter(m => String(m._id) !== String(memberId));
+    await group.save();
+
+    // Emit socket event
+    req.app.get('io')?.to(groupId).emit('group-updated', {
+      groupId,
+      action: 'remove',
+      memberId,
+    });
+
+    res.status(200).json({
+      message: "Member removed successfully",
+      group,
+    });
+  } catch (err) {
+    console.error("Remove member error:", err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 

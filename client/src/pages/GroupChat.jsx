@@ -523,7 +523,7 @@ const GroupChat = () => {
   // Leave group
   const leaveGroup = async () => {
     try {
-      await API.post(`/group/leave/${groupId}`, {}, { withCredentials: true });
+      await API.post(`/group/groups/leave/${groupId}`, {}, { withCredentials: true });
       socket.emit('leave-group', groupId);
       // Redirect to another page (e.g., groups list) or clear group state
       window.location.href = '/groups'; // Adjust as needed
@@ -551,8 +551,8 @@ const GroupChat = () => {
   // Kick member
   const kickMember = async (memberId) => {
     try {
-      const res = await API.post(
-        `/group/remove-member/${groupId}`,
+      const res = await API.patch(
+        `/group/groups/${groupId}/remove-member`,
         { memberId },
         { withCredentials: true }
       );
