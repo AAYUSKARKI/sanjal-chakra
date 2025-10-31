@@ -23,7 +23,7 @@ const MessageList = ({ messages, user }) => {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {/* Avatar for non-user messages */}
+            {/* Avatar on LEFT for others */}
             {message.sender._id !== user._id && (
               <img
                 src={
@@ -31,9 +31,11 @@ const MessageList = ({ messages, user }) => {
                   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'
                 }
                 alt={message.sender.fullname}
-                className="w-8 h-8 rounded-full mt-2"
+                className="w-8 h-8 rounded-full object-cover"
               />
             )}
+
+            {/* Message Bubble */}
             <div
               className={`flex flex-col max-w-[70%] rounded-2xl p-3 shadow-md transition-all duration-200 hover:shadow-lg ${
                 message.sender._id === user._id
@@ -46,14 +48,16 @@ const MessageList = ({ messages, user }) => {
                   {message.sender.fullname}
                 </p>
               )}
-              {message.message_type === 'image' && (
+              {message.message_type === 'image' && message.media_url && (
                 <img
                   src={message.media_url}
-                  className="w-full max-w-[200px] rounded-lg mb-2 shadow-sm"
-                  alt="Message media"
+                  className="w-full max-w-[200px] rounded-lg mb-2 shadow-sm object-cover"
+                  alt="Sent media"
                 />
               )}
-              <p className="text-sm break-words">{message.text}</p>
+              {message.text && (
+                <p className="text-sm break-words">{message.text}</p>
+              )}
               <span className="text-xs text-gray-400 mt-1 self-end">
                 {new Date(message.createdAt).toLocaleString('en-US', {
                   hour: 'numeric',
@@ -62,7 +66,18 @@ const MessageList = ({ messages, user }) => {
                 })}
               </span>
             </div>
-            {message.sender._id === user._id && <div className="w-8 h-8" />}
+
+            {/* Avatar on RIGHT for current user */}
+            {message.sender._id === user._id && (
+              <img
+                src={
+                  user.profilePics ||
+                  'https://avatar.iran.liara.run/username?username=' + user.username
+                }
+                alt={user.fullname}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            )}
           </motion.div>
         ))}
       </AnimatePresence>

@@ -249,14 +249,14 @@ export const sendMessage = async (req, res) => {
     // 4️⃣ Emit socket events
     emitToGroup(groupId, "receive-message", {
       _id: message._id,
-      sender: req.user._id,
+      sender: {_id: req.user._id, fullname: req.user.fullname, profilePics: req.user.profilePics },
       text,
       media_url,
       message_type: req.file ? "image" : "text",
       createdAt: message.createdAt,
     });
 
-    return res.status(201).json(message);
+    return res.status(201).json({...message._doc, sender: {_id: req.user._id, fullname: req.user.fullname, profilePics: req.user.profilePics }});
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -269,7 +269,7 @@ export const getMessages = async (req, res) => {
     try {
         const { groupId } = req.params;
         const messages = await Message.find({ group: groupId })
-            .populate("sender", "username email fullname profilePic")
+            .populate("sender", "username email fullname profilePics")
             .sort({ createdAt: 1 });
 
         res.json(messages);
