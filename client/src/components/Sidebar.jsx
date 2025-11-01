@@ -2,12 +2,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { CirclePlus, LogOut, X } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import MenuItems from './MenuItems';
-import API from '../api/api';
+import { useNotifications } from '../context/NotificationContext';
 import { useEffect, useState } from 'react';
+import API from '../api/api';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications(); // Use shared unreadCount
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
@@ -25,7 +27,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   return (
     <>
-      {/* Overlay for mobile */}
       <div
         className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-10 transition-opacity md:hidden ${
           sidebarOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
@@ -37,7 +38,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         className={`fixed md:static top-0 left-0 h-full w-64 xl:w-72 bg-white border-r border-gray-200 shadow-sm flex flex-col justify-between z-20 transform transition-transform duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
       >
-        {/* Top Section */}
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <img
@@ -57,12 +57,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             </button>
           </div>
 
-          {/* Menu Items */}
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-            <MenuItems setSidebarOpen={setSidebarOpen} />
+            <MenuItems setSidebarOpen={setSidebarOpen} unreadCount={unreadCount} />
           </div>
 
-          {/* Create Post Button */}
           <div className="px-6 mt-4">
             <Link
               to="/create-post"
@@ -75,7 +73,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           </div>
         </div>
 
-        {/* Bottom User Section */}
         <div className="border-t border-gray-200 p-4 px-6 flex items-center justify-between hover:bg-gray-50 transition">
           <div
             onClick={() => navigate(`/profile`)}
@@ -83,7 +80,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
           >
             <img
               src={
-                profile?.profilePics || user?.profile_image ||
+                profile?.profilePics ||
+                user?.profile_image ||
                 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'
               }
               alt="User"

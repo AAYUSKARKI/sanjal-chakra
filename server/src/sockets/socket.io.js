@@ -40,6 +40,14 @@ export const setUpSocket = (server) => {
       console.log(`Socket ${socket.id} joined group ${groupId}`);
     });
 
+    //sent online users to client
+    socket.on('get-online-users', () => {
+      console.log(onlineUsers)
+      const onlineUsersArray = Array.from(onlineUsers.keys());
+      console.log(onlineUsersArray)
+      socket.emit('online-users', onlineUsersArray);
+    });
+
     socket.on('leave-group', (groupId) => {
       socket.leave(groupId);
       console.log(`Socket ${socket.id} left group ${groupId}`);

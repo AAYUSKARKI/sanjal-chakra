@@ -1,19 +1,8 @@
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import {
-  Bell,
-  Heart,
-  MessageCircle,
-  UserPlus,
-  ThumbsUp,
-  CheckCircle,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import clsx from "clsx";
-import useAuth from "../hooks/useAuth";
-import API from "../api/api";
-import { socket } from "../utils/socket";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
+import { Bell, Heart, MessageCircle, UserPlus, ThumbsUp, CheckCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import clsx from 'clsx';
+import { useNotifications } from '../context/NotificationContext';
 
 const iconMap = {
   follow: <UserPlus className="w-5 h-5 text-blue-500" />,
@@ -23,76 +12,14 @@ const iconMap = {
   connect: <ThumbsUp className="w-5 h-5 text-yellow-500" />,
 };
 
+
 const Notifications = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const userId = user?._id;
+  const { notifications, loading, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
 
   const handleNavigate = (link) => {
     navigate(link);
-  }
-
-  // ✅ Fetch existing notifications
-  const fetchNotifications = async () => {
-    try {
-      const res = await API.get(`/notify/${userId}`, { withCredentials: true });
-      setNotifications(res.data.data);
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-    } finally {
-      setLoading(false);
-    }
   };
-
-  // ✅ Mark a single notification as read
-  const markAsRead = async (id) => {
-    try {
-      await API.put(`/notify/read/${id}`, {}, { withCredentials: true });
-      setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, read: true } : n))
-      );
-    } catch (err) {
-      console.error("Error marking notification as read:", err);
-    }
-  };
-
-  // ✅ Mark all notifications as read
-  const markAllAsRead = async () => {
-    try {
-      const unread = notifications.filter((n) => !n.read);
-      await Promise.all(
-        unread.map((n) =>
-          API.put(`/notify/read/${n._id}`, {}, { withCredentials: true })
-        )
-      );
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    } catch (err) {
-      console.error("Error marking all as read:", err);
-    }
-  };
-
-  // ✅ Real-time socket listener
-  useEffect(() => {
-    if (!userId) return;
-
-    socket.connect();
-    socket.emit("register", userId);
-
-    fetchNotifications();
-
-    socket.on("receive-notification", (newNoti) => {
-      console.log("🔔 New notification received:", newNoti);
-      setNotifications((prev) => [newNoti, ...prev]);
-      toast.success(`🔔 ${newNoti.message}`);
-    });
-
-    return () => {
-      socket.off("receive-notification");
-      socket.disconnect();
-    };
-  }, [userId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex justify-center py-10 px-4">
@@ -105,7 +32,7 @@ const Notifications = () => {
           </h1>
           <button
             onClick={markAllAsRead}
-            className="text-sm text-blue-600 hover:underline hover:text-blue-700"
+            className="text-sm cursor-pointer text-blue-600 hover:underline hover:text-blue-700"
           >
             Mark all as read
           </button>
@@ -137,7 +64,11 @@ const Notifications = () => {
                     "relative cursor-pointer flex items-start gap-4 p-5 border-b border-slate-100 hover:bg-slate-50 transition-all duration-200",
                     !noti.read && "bg-blue-50/40"
                   )}
-                  onClick={() => handleNavigate(noti.link)}
+                  onClick={async () => {
+                    if (!noti.read) await markAsRead(noti._id);
+                    if (noti.link) navigate(noti.link);
+                  }}
+
                 >
                   {/* New Badge Pulse */}
                   {!noti.read && (
@@ -165,8 +96,11 @@ const Notifications = () => {
                   <div className="flex-shrink-0">
                     {!noti.read ? (
                       <button
-                        onClick={() => markAsRead(noti._id)}
-                        className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsRead(noti._id);
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer flex items-center gap-1"
                       >
                         <CheckCircle className="w-4 h-4" /> Mark as read
                       </button>

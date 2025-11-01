@@ -18,7 +18,9 @@ import GroupChat from './pages/GroupChat';
 import Notifications from './pages/Notification';
 import PostDetail from './pages/PostDetail';
 const App = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <div>Loading...</div>;
 
   return (
     <>

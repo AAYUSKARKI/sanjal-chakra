@@ -58,6 +58,7 @@ export const sendMessage = async (req, res) => {
             from: sender,
             type: "message",
             message: `${req.user.fullname} sent you a message`,
+            link: `/messages/${sender}`,
         });
 
         // Respond with message data

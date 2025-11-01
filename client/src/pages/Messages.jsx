@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import API from '../api/api'
 import useAuth from '../hooks/useAuth'
 import toast from 'react-hot-toast'
+import { socket } from '../utils/socket'
 
 const Messages = () => {
   const [connections, setConnections] = useState([])
@@ -14,6 +15,7 @@ const Messages = () => {
   const [selectedMembers, setSelectedMembers] = useState([])
   const [groupPhoto, setGroupPhoto] = useState(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [onlineUsers, setOnlineUsers] = useState([])
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -67,8 +69,8 @@ const Messages = () => {
   }
 
   const handleMemberToggle = (userId) => {
-    setSelectedMembers(prev => 
-      prev.includes(userId) 
+    setSelectedMembers(prev =>
+      prev.includes(userId)
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     )
@@ -77,7 +79,23 @@ const Messages = () => {
   useEffect(() => {
     getConnections()
     getGroups()
+
+    socket.connect();
+    socket.emit('register', user._id);
+    socket.emit('get-online-users');
+    socket.on('online-users', (onlineUsers) => {
+      console.log('Online users:', onlineUsers);
+      setOnlineUsers(onlineUsers);
+    });
+    return () => {
+      socket.off('online-users');
+    }
   }, [])
+
+  // Helper function to check if a group has any online members
+  const isGroupOnline = (group) => {
+    return group.members.some(memberId => onlineUsers.includes(memberId));
+  }
 
   return (
     <div className='min-h-screen relative bg-gradient-to-b from-slate-50 to-gray-100'>
@@ -92,7 +110,7 @@ const Messages = () => {
               Connect with friends, family, and groups
             </p>
           </div>
-          <button 
+          <button
             onClick={() => setShowGroupModal(true)}
             className='group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-md'
           >
@@ -107,23 +125,28 @@ const Messages = () => {
             <h2 className='text-2xl font-bold text-slate-900 mb-4'>Your Groups</h2>
             <div className='flex flex-col gap-4'>
               {groups.map((group) => (
-                <div 
-                  key={group._id} 
+                <div
+                  key={group._id}
                   className='max-w-xl flex items-center gap-5 p-5 bg-white shadow-lg rounded-xl hover:shadow-xl transition-all duration-200 transform hover:scale-[1.01]'
                 >
-                  <img 
-                    src={group.photo || "https://res.cloudinary.com/dczqoleux/image/upload/v1760852684/group_photos/default_group.png"} 
-                    alt={group.name} 
-                    className='rounded-full size-14 object-cover border-2 border-blue-200' 
-                  />
+                  <div className='relative'>
+                    <img
+                      src={group.photo || "https://res.cloudinary.com/dczqoleux/image/upload/v1760852684/group_photos/default_group.png"}
+                      alt={group.name}
+                      className='rounded-full size-14 object-cover border-2 border-blue-200'
+                    />
+                    {isGroupOnline(group) && (
+                      <span className='absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full'></span>
+                    )}
+                  </div>
                   <div className='flex-1'>
                     <p className='font-semibold text-slate-800 text-lg'>{group.name}</p>
                     <p className='text-slate-500 text-sm'>{group.description || 'No description'}</p>
                     <p className='text-sm text-gray-600 mt-1'>Members: {group.members.length}</p>
                   </div>
                   <div className='flex gap-3'>
-                    <button 
-                      onClick={() => navigate(`/messages/group/${group._id}`)} 
+                    <button
+                      onClick={() => navigate(`/messages/group/${group._id}`)}
                       className='size-10 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 active:scale-95 transition-all duration-200'
                     >
                       <MessageSquare className='w-5 h-5' />
@@ -139,29 +162,34 @@ const Messages = () => {
         <div className='flex flex-col gap-4'>
           <h2 className='text-2xl font-bold text-slate-900 mb-4'>Your Connections</h2>
           {connections.map((user) => (
-            <div 
-              key={user._id} 
+            <div
+              key={user._id}
               className='max-w-xl flex items-center gap-5 p-5 bg-white shadow-lg rounded-xl hover:shadow-xl transition-all duration-200 transform hover:scale-[1.01]'
             >
-              <img 
-                src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
-                alt="" 
-                className='rounded-full size-14 object-cover' 
-              />
+              <div className='relative'>
+                <img
+                  src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"}
+                  alt=""
+                  className='rounded-full size-14 object-cover'
+                />
+                {onlineUsers.includes(user._id) && (
+                  <span className='absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full'></span>
+                )}
+              </div>
               <div className='flex-1'>
                 <p className='font-semibold text-slate-800 text-lg'>{user.fullname}</p>
                 <p className='text-slate-500 text-sm'>@{user.fullname}</p>
                 <p className='text-sm text-gray-600 mt-1'>{user.bio || 'No bio'}</p>
               </div>
               <div className='flex gap-3'>
-                <button 
-                  onClick={() => navigate(`/messages/${user._id}`)} 
+                <button
+                  onClick={() => navigate(`/messages/${user._id}`)}
                   className='size-10 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 active:scale-95 transition-all duration-200'
                 >
                   <MessageSquare className='w-5 h-5' />
                 </button>
-                <button 
-                  onClick={() => navigate(`/profile/${user._id}`)} 
+                <button
+                  onClick={() => navigate(`/profile/${user._id}`)}
                   className='size-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 active:scale-95 transition-all duration-200'
                 >
                   <Eye className='w-5 h-5' />
@@ -177,7 +205,7 @@ const Messages = () => {
             <div className='bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-100 hover:scale-[1.02]'>
               <div className='flex justify-between items-center mb-6'>
                 <h2 className='text-2xl font-bold text-slate-900'>Create a New Group</h2>
-                <button 
+                <button
                   onClick={() => setShowGroupModal(false)}
                   className='p-2 rounded-full hover:bg-gray-100 text-slate-600 transition-all duration-200'
                 >
@@ -221,8 +249,8 @@ const Messages = () => {
                   <label className='block text-sm font-medium text-slate-700 mb-2'>Add Members</label>
                   <div className='max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50'>
                     {connections.map((user) => (
-                      <div 
-                        key={user._id} 
+                      <div
+                        key={user._id}
                         className='flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 transition-all duration-200 cursor-pointer'
                         onClick={() => handleMemberToggle(user._id)}
                       >
@@ -232,11 +260,16 @@ const Messages = () => {
                           onChange={() => handleMemberToggle(user._id)}
                           className='h-5 w-5 text-blue-600 rounded focus:ring-blue-500'
                         />
-                        <img 
-                          src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"} 
-                          alt="" 
-                          className='rounded-full size-10 object-cover' 
-                        />
+                        <div className='relative'>
+                          <img
+                            src={user.profilePics || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"}
+                            alt=""
+                            className='rounded-full size-10 object-cover'
+                          />
+                          {onlineUsers.includes(user._id) && (
+                            <span className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full'></span>
+                          )}
+                        </div>
                         <span className='text-slate-700 font-medium'>{user.fullname}</span>
                       </div>
                     ))}

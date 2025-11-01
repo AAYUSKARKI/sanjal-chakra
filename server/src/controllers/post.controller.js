@@ -237,7 +237,7 @@ export const likePost = async (req, res) => {
                 from: userId,
                 type: "like",
                 relatedPost: post._id,
-                link: `http://localhost:5173/posts/${post._id}`,
+                link: `/post/${post._id}`,
             });
             if (!exists) {
                 await createNotification({
@@ -298,7 +298,7 @@ export const postComment = async (req, res) => {
                     type: "comment",
                     message: `${req.user.fullname} commented on your post`,
                     relatedPost: post._id,
-                    link: `http://localhost:5173/posts/${post._id}`,
+                    link: `/post/${post._id}`,
                 });
             }
         }
