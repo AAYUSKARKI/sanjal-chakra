@@ -255,6 +255,7 @@ export const sendMessage = async (req, res) => {
     // 4️⃣ Emit socket events
     emitToGroup(groupId, "receive-message", {
       _id: message._id,
+      group: groupId,
       sender: { _id: req.user._id, fullname: req.user.fullname, profilePics: req.user.profilePics },
       text,
       media_url,

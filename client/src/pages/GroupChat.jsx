@@ -13,9 +13,9 @@ const MessageList = ({ messages, user }) => {
   return (
     <div className="space-y-3 max-w-3xl mx-auto px-4">
       <AnimatePresence>
-        {messages.map((message, index) => (
+        {messages.map((message) => (
           <motion.div
-            key={message._id || index}
+            key={message._id}
             className={`flex ${
               message.sender._id === user._id ? 'justify-end' : 'justify-start'
             } items-end gap-2 my-2`}
@@ -132,7 +132,7 @@ const VideoCallUI = ({
         )}
       </div>
       {groupMembers
-        .filter((member) => member._id !== userId)
+        .filter((member) => member._id !== localStream?.id)
         .map((member) => (
           <div key={member._id} className="relative">
             <h3 className="text-sm font-medium mb-2 text-gray-800">{member.fullname}</h3>
@@ -587,7 +587,7 @@ const GroupChat = () => {
       media_url: image ? URL.createObjectURL(image) : null,
       createdAt: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, tempMessage]);
+    // setMessages((prev) => [...prev, tempMessage]);
     setText('');
     setImage(null);
 
@@ -671,12 +671,15 @@ const addMember = async (userIds) => {
   useEffect(() => {
     if (user && groupId) {
       socket.connect();
+      socket.emit('register', user._id);
       socket.emit('join-group', groupId);
-      socket.on('receive-group-message', (message) => {
+      socket.on('receive-message', (message) => {
+        console.log(message)
         if (message.group === groupId) {
           setMessages((prev) => [...prev, message].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
         }
-      });
+        }
+      );
       socket.on('group-updated', ({ groupId: updatedGroupId, action, member, memberId }) => {
         if (updatedGroupId === groupId) {
           fetchGroup(); // Refresh group data
