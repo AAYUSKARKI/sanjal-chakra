@@ -6,7 +6,8 @@ import API from '../api/api';
 import { socket } from '../utils/socket';
 import useWebRTC from '../hooks/useWebRTC';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import { Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 // Message List Component
 const MessageList = ({ messages, user }) => {
   return (
@@ -225,24 +226,76 @@ const IncomingCallModal = ({ caller, onAccept, onReject, callId }) => (
 );
 
 // Group Details Modal Component
+// import { useEffect, useState } from 'react';
+// import { motion } from 'framer-motion';
+// import API from '../api/api';
+// import { socket } from '../utils/socket';
+// import { toast } from 'react-toastify'; // Assuming react-toastify for notifications
+
 const GroupDetailsModal = ({ group, onClose, user, onLeaveGroup, onAddMember, onKickMember }) => {
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [error, setError] = useState('');
+  const [connections, setConnections] = useState([]);
+  const [filteredConnections, setFilteredConnections] = useState([]);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [error, setError] = useState('');
   const isAdmin = group.admins.some((admin) => admin._id === user._id);
 
+  // Fetch connections
+  const getConnections = async () => {
+    try {
+      const { data } = await API.get(`/users/${user._id}/getconnections`, { withCredentials: true });
+      // Filter out existing group members
+      const filtered = data.filter((conn) => !group.members.some((m) => m._id === conn._id));
+      setConnections(filtered);
+      setFilteredConnections(filtered);
+    } catch (error) {
+      setError('Failed to load connections.');
+      console.error(error);
+    }
+  };
+
+  // Fetch connections when modal opens
+  useEffect(() => {
+    if (isAdmin) {
+      getConnections();
+    }
+  }, [user._id, group.members]);
+
+  // Handle search
+  useEffect(() => {
+    const filtered = connections.filter(
+      (conn) =>
+        conn.fullname.toLowerCase().includes(search.toLowerCase()) ||
+        conn.username.toLowerCase().includes(search.toLowerCase())
+    );
+    setFilteredConnections(filtered);
+  }, [search, connections]);
+
+  // Toggle selection
+  const handleToggle = (userId) => {
+    setSelected((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  // Add selected members
   const handleAddMember = async () => {
-    if (!newMemberEmail) {
-      setError('Please enter an email.');
+    if (selected.length === 0) {
+      setError('Please select at least one member.');
       return;
     }
     setIsAdding(true);
     try {
-      await onAddMember(newMemberEmail);
-      setNewMemberEmail('');
+      await onAddMember(selected);
+      setSelected([]);
+      setSearch('');
       setError('');
+      toast.success(`${selected.length} member(s) added successfully!`);
     } catch (err) {
-      setError('Failed to add member.');
+      console.log(err)
+      setError(err.message || 'Failed to add members.');
+      toast.error(err.message || 'Failed to add members.');
     } finally {
       setIsAdding(false);
     }
@@ -288,26 +341,64 @@ const GroupDetailsModal = ({ group, onClose, user, onLeaveGroup, onAddMember, on
           </div>
           {isAdmin && (
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Add Member</h3>
-              <div className="flex gap-2">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Add Members</h3>
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
                 <input
-                  type="email"
-                  value={newMemberEmail}
-                  onChange={(e) => setNewMemberEmail(e.target.value)}
-                  placeholder="Enter email"
-                  className="flex-1 p-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500"
+                  type="text"
+                  placeholder="Search connections..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 w-full py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-blue-500"
                   disabled={isAdding}
                 />
-                <button
-                  onClick={handleAddMember}
-                  className={`p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 ${
-                    isAdding ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={isAdding}
-                >
-                  {isAdding ? 'Adding...' : 'Add'}
-                </button>
               </div>
+              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+                {filteredConnections.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center">No connections available.</p>
+                )}
+                {filteredConnections.map((user) => (
+                  <div
+                    key={user._id}
+                    onClick={() => !isAdding && handleToggle(user._id)}
+                    className={`flex items-center justify-between p-2 rounded-lg cursor-pointer ${
+                      selected.includes(user._id)
+                        ? 'bg-blue-100'
+                        : 'hover:bg-gray-100'
+                    } transition-all duration-200`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={
+                          user.profilePics ||
+                          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'
+                        }
+                        alt={user.fullname}
+                        className="w-10 h-10 rounded-full"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">{user.fullname}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(user._id)}
+                      readOnly
+                      className="accent-blue-500"
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleAddMember}
+                className={`w-full mt-3 p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 ${
+                  isAdding || selected.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={isAdding || selected.length === 0}
+              >
+                {isAdding ? 'Adding...' : `Add ${selected.length} Member${selected.length > 1 ? 's' : ''}`}
+              </button>
               {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
             </div>
           )}
@@ -321,7 +412,10 @@ const GroupDetailsModal = ({ group, onClose, user, onLeaveGroup, onAddMember, on
                 >
                   <div className="flex items-center gap-3">
                     <img
-                      src={member.profilePics || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'}
+                      src={
+                        member.profilePics ||
+                        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'
+                      }
                       alt={member.fullname}
                       className="w-10 h-10 rounded-full"
                     />
@@ -534,19 +628,28 @@ const GroupChat = () => {
   };
 
   // Add member
-  const addMember = async (email) => {
-    try {
-      const res = await API.post(
-        `/group/add-member/${groupId}`,
-        { email },
-        { withCredentials: true }
-      );
-      setGroup(res.data.group);
-      socket.emit('group-updated', { groupId, action: 'add', member: res.data.newMember });
-    } catch (error) {
-      throw new Error('Failed to add member.');
-    }
-  };
+// In GroupChat component
+const addMember = async (userIds) => {
+  try {
+    const res = await API.post(
+      `/group/groups/${groupId}/invite`,
+      { userIds },
+      { withCredentials: true }
+    );
+    setGroup(res.data.group);
+    console.log(res.data.group);
+    userIds.forEach((userId) => {
+      socket.emit('group-updated', {
+        groupId,
+        action: 'add',
+        member: res.data.group.members.find((m) => m._id === userId),
+      });
+    });
+  } catch (error) {
+    console.log(error)
+    throw new Error(error.response?.data?.message || 'Failed to add members');
+  }
+};
 
   // Kick member
   const kickMember = async (memberId) => {
